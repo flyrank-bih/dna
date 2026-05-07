@@ -1,0 +1,21 @@
+{% comment %}
+FlyRank Visual DNA Shopify Liquid snippet template.
+Placeholders:
+- {{sectionName}}
+- {{wrapperClass}}
+- {{css}}
+{% endcomment %}
+
+{%- style -%}
+{{css}}
+{%- endstyle -%}
+
+<section class="{{wrapperClass}}">
+  <div class="{{wrapperClass}}__inner">
+    <h2 class="{{wrapperClass}}__title">{{ section.settings.title }}</h2>
+    <p class="{{wrapperClass}}__lede">{{ section.settings.lede }}</p>
+    <a class="{{wrapperClass}}__cta" href="{{ section.settings.cta_url }}">
+      {{ section.settings.cta_text }}
+    </a>
+  </div>
+</section>

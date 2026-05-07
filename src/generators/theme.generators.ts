@@ -1,3 +1,8 @@
+/**
+ * @file theme generators
+ * @description Generated/formatting utilities used by FlyRank Visual DNA.
+ */
+
 import { isLightHex, toHslParts, toHslString } from "@/helpers/color.helpers";
 
 interface Color {
@@ -79,7 +84,6 @@ interface ThemeGenerator {
 
 
 
-// ========== Base Theme Generator ==========
 abstract class BaseThemeGenerator implements ThemeGenerator {
   protected design: DesignSystem;
 
@@ -142,7 +146,6 @@ ${shadowKeys}
   }
 }
 
-// ========== React Theme Generator ==========
 class ReactThemeGenerator extends BaseThemeGenerator {
   constructor(design: DesignSystem) {
     super(design);
@@ -313,7 +316,6 @@ export default theme;
   }
 }
 
-// ========== shadcn Theme Generator ==========
 class ShadcnThemeGenerator extends BaseThemeGenerator {
   constructor(design: DesignSystem) {
     super(design);

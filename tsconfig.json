@@ -5,6 +5,7 @@
       "@/*": ["src/*"]
     },
     "lib": ["ES2024"],
+    "downlevelIteration": true,
     "module": "preserve",
     "noEmit": true,
     "skipLibCheck": true,

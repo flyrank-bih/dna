@@ -9,7 +9,6 @@
  *
  */
 
-// ========== Protocols ==========
 export interface Token {
   $value: string;
   $type: TokenType;
@@ -54,7 +53,6 @@ export interface DesignSystem {
   breakpoints: Array<{ label: string; value: number }>;
 }
 
-// ========== Token Formatters ==========
 class ColorFormatter implements TokenFormatter {
   constructor(private design: DesignSystem) {}
 
@@ -240,6 +238,3 @@ export function formatTokens(design: DesignSystem): string {
   const tokens = formatter.format();
   return JSON.stringify(tokens, null, 2);
 }
-
-
-
