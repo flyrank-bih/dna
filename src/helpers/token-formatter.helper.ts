@@ -23,6 +23,7 @@ export type TokenType =
 
 
 export type TokenCategory = Record<string, Token | Record<string, Token>>;
+type TokenMap = Record<string, Token>;
 
 export interface TokenFormatter {
   format(): TokenCategory;
@@ -99,18 +100,20 @@ class TypographyFormatter implements TokenFormatter {
 
   format(): TokenCategory {
     const tokens: TokenCategory = { fontFamily: {}, fontSize: {} };
+    const fontFamily = tokens.fontFamily as TokenMap;
+    const fontSize = tokens.fontSize as TokenMap;
 
     // Font Families
     this.design.typography.families.forEach((family) => {
       const key = this.getFontFamilyKey(family);
-      tokens.fontFamily[key] = this.createToken(family.name, 'fontFamily');
+      fontFamily[key] = this.createToken(family.name, 'fontFamily');
     });
 
     // Font Sizes
     this.design.typography.scale
       .slice(0, 15)
       .forEach((size) => {
-        tokens.fontSize[`${size.size}`] = this.createToken(`${size.size}px`, 'dimension');
+        fontSize[`${size.size}`] = this.createToken(`${size.size}px`, 'dimension');
       });
 
     return tokens;
@@ -132,9 +135,10 @@ class SpacingFormatter implements TokenFormatter {
 
   format(): TokenCategory {
     const tokens: TokenCategory = { spacing: {} };
+    const spacing = tokens.spacing as TokenMap;
 
     Object.entries(this.design.spacing.tokens).forEach(([name, value]) => {
-      tokens.spacing[name] = this.createToken(value, 'dimension');
+      spacing[name] = this.createToken(value, 'dimension');
     });
 
     return tokens;
@@ -150,9 +154,10 @@ class BorderRadiusFormatter implements TokenFormatter {
 
   format(): TokenCategory {
     const tokens: TokenCategory = { borderRadius: {} };
+    const borderRadius = tokens.borderRadius as TokenMap;
 
     this.design.borders.radii.forEach((radius) => {
-      tokens.borderRadius[radius.label] = this.createToken(`${radius.value}px`, 'dimension');
+      borderRadius[radius.label] = this.createToken(`${radius.value}px`, 'dimension');
     });
 
     return tokens;
@@ -168,9 +173,10 @@ class ShadowFormatter implements TokenFormatter {
 
   format(): TokenCategory {
     const tokens: TokenCategory = { shadow: {} };
+    const shadowTokens = tokens.shadow as TokenMap;
 
     this.design.shadows.values.forEach((shadow) => {
-      tokens.shadow[shadow.label] = this.createToken(shadow.raw, 'shadow');
+      shadowTokens[shadow.label] = this.createToken(shadow.raw, 'shadow');
     });
 
     return tokens;
@@ -186,9 +192,10 @@ class BreakpointFormatter implements TokenFormatter {
 
   format(): TokenCategory {
     const tokens: TokenCategory = { breakpoint: {} };
+    const breakpointTokens = tokens.breakpoint as TokenMap;
 
     this.design.breakpoints.forEach((breakpoint) => {
-      tokens.breakpoint[breakpoint.label] = this.createToken(`${breakpoint.value}px`, 'dimension');
+      breakpointTokens[breakpoint.label] = this.createToken(`${breakpoint.value}px`, 'dimension');
     });
 
     return tokens;

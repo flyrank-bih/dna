@@ -16,6 +16,7 @@ import {
   type TokenRef,
   walkTokenLeaves,
 } from "@/helpers/formatter-token.helpers";
+import { type ReferenceResolver } from "@/helpers/design-token.helpers";
 
 interface DesignSystem {
   meta?: { url?: string };
@@ -113,7 +114,7 @@ interface ThemeJson {
 class WordPressThemeGenerator {
   private tokens: TokenNode;
   private design: DesignSystem;
-  private tokenResolver;
+  private tokenResolver: ReferenceResolver;
   private headerVersion: string;
 
   constructor(
@@ -175,7 +176,7 @@ class WordPressThemeGenerator {
 
   private collectWpSpacing(): WpSpacingEntry[] {
     const entries: WpSpacingEntry[] = [];
-    const spacing = this.tokens?.primitive?.spacing || {};
+    const spacing = (this.tokens?.primitive?.spacing || {}) as Record<string, TokenNode | TokenRef>;
 
     for (const key of Object.keys(spacing)) {
       const tok = spacing[key];
@@ -407,9 +408,10 @@ Text Domain: flyrank-theme
     }
 
     // Layout
-    if (this.design.layout?.containerWidths?.length > 0) {
+    const containerWidths = this.design.layout?.containerWidths;
+    if (theme.settings.layout && containerWidths && containerWidths.length > 0) {
       theme.settings.layout.contentSize =
-        this.design.layout.containerWidths[0].maxWidth;
+        containerWidths[0].maxWidth;
     }
 
     // Body styles
@@ -419,20 +421,21 @@ Text Domain: flyrank-theme
         lineHeight: this.design.typography.body.lineHeight,
       };
     }
-    if (this.design.typography?.families?.length > 0) {
+    const families = this.design.typography?.families;
+    if (families && families.length > 0) {
       theme.styles.typography = theme.styles.typography || {};
       theme.styles.typography.fontFamily =
-        typeof this.design.typography.families[0] === "string"
-          ? this.design.typography.families[0]
-          : this.design.typography.families[0].name;
+        typeof families[0] === "string" ? families[0] : families[0].name;
     }
-    if (this.design.colors?.backgrounds?.length > 0) {
+    const backgrounds = this.design.colors?.backgrounds;
+    if (backgrounds && backgrounds.length > 0) {
       theme.styles.color = theme.styles.color || {};
-      theme.styles.color.background = this.design.colors.backgrounds[0];
+      theme.styles.color.background = backgrounds[0];
     }
-    if (this.design.colors?.text?.length > 0) {
+    const textColors = this.design.colors?.text;
+    if (textColors && textColors.length > 0) {
       theme.styles.color = theme.styles.color || {};
-      theme.styles.color.text = this.design.colors.text[0];
+      theme.styles.color.text = textColors[0];
     }
 
     // Gradients

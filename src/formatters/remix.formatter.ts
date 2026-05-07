@@ -80,6 +80,8 @@ interface SectionContext {
   design: DesignSystem;
 }
 
+type SectionRole = NonNullable<DesignSystem["sectionRoles"]>["sections"][number];
+
 class RemixGenerator {
   private design: DesignSystem;
   private vocab: Vocabulary;
@@ -101,16 +103,16 @@ class RemixGenerator {
   }
 
   private escape(s: string): string {
+    const entityMap: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
     return String(s ?? "").replace(
       /[&<>"']/g,
-      (c) =>
-        ({
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-          "'": "&#39;",
-        })[c],
+      (c) => entityMap[c] || c,
     );
   }
 
@@ -126,19 +128,19 @@ class RemixGenerator {
     const fromVoice = (this.design.voice?.sampleHeadings || []).filter(Boolean);
     const fromSections = (this.design.sectionRoles?.sections || [])
       .map((s) => s.heading || s.slots?.heading)
-      .filter(Boolean);
+      .filter((value): value is string => typeof value === "string" && value.length > 0);
     const merged = [...new Set([...fromVoice, ...fromSections])];
     return merged.slice(0, count);
   }
 
   private pickCtas(count: number = 4): string[] {
     const verbs = (this.design.voice?.ctaVerbs || []).filter(Boolean);
-    const phrases = verbs
+    const phrases: string[] = verbs
       .map((v) => {
         if (typeof v === "string") return v;
         return v.verb || v.text || v.phrase || "";
       })
-      .filter(Boolean);
+      .filter((value): value is string => typeof value === "string" && value.length > 0);
 
     if (phrases.length >= count) return phrases.slice(0, count);
 
@@ -163,7 +165,7 @@ class RemixGenerator {
   }
 
   private renderSection(
-    section: DesignSystem["sectionRoles"]["sections"][0],
+    section: SectionRole,
     ctx: SectionContext,
   ): string {
     const { vocab, headings, ctas, design } = ctx;
@@ -346,7 +348,7 @@ class RemixGenerator {
     }
   }
 
-  private prepareSections(): DesignSystem["sectionRoles"]["sections"] {
+  private prepareSections(): SectionRole[] {
     const seenHeadings = new Set();
     return (this.design.sectionRoles?.sections || [])
       .filter((s) => s.role !== "nav" && s.role !== "footer")
@@ -415,7 +417,7 @@ class RemixGenerator {
       this.vocab.fonts?.display?.import,
       this.vocab.fonts?.body?.import,
     ]
-      .filter(Boolean)
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
       .filter((v, i, a) => a.indexOf(v) === i);
 
     const ogTitle = `${hostName} · remixed as ${this.vocab.name.toLowerCase()}`;

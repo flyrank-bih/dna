@@ -14,6 +14,7 @@ import {
   type DesignTokensBase,
   type TokenNode,
   type TokenRef,
+  tokenPathToCamel,
   walkTokenLeaves,
 } from "@/helpers/formatter-token.helpers";
 
@@ -35,20 +36,7 @@ class FlutterDartGenerator {
   }
 
   private camelFromPath(path: string): string {
-    const parts = path.split(".");
-    const trimmed = parts.slice(1);
-    let segs: string[];
-
-    if (trimmed[0] === "color" && trimmed.length >= 3) {
-      segs = trimmed.slice(1);
-    } else {
-      segs = trimmed;
-    }
-
-    return segs
-      .map((s, i) => (i === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)))
-      .join("")
-      .replace(/[^a-zA-Z0-9]/g, "");
+    return tokenPathToCamel(path);
   }
 
   private hexToDartArgb(hex: unknown): string | null {

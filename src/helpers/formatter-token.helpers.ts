@@ -45,3 +45,19 @@ export function* walkTokenLeaves(
     );
   }
 }
+
+export function tokenPathToCamel(path: string, skipPrefixCount = 1): string {
+  const parts = path.split(".");
+  const trimmed = parts.slice(skipPrefixCount);
+  let segs: string[];
+
+  if (trimmed[0] === "color" && trimmed.length >= 3) segs = trimmed.slice(1);
+  else segs = trimmed;
+
+  return segs
+    .map((segment, index) =>
+      index === 0 ? segment : segment.charAt(0).toUpperCase() + segment.slice(1),
+    )
+    .join("")
+    .replace(/[^a-zA-Z0-9]/g, "");
+}

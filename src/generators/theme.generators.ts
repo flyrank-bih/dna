@@ -272,13 +272,13 @@ export default theme;
     const headingFont = typography.families.find((f) => f.usage === "headings");
     if (bodyFont) {
       mui.typography.body1 = {
-        fontSize: "1rem",
         ...(mui.typography.body1 || {}),
+        fontSize: "1rem",
         fontFamily: `'${bodyFont.name}', sans-serif`,
       };
       mui.typography.body2 = {
-        fontSize: "1rem",
         ...(mui.typography.body2 || {}),
+        fontSize: "1rem",
         fontFamily: `'${bodyFont.name}', sans-serif`,
       };
     }

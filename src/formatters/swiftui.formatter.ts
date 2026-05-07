@@ -13,6 +13,7 @@ import {
   type DesignTokensBase,
   type TokenNode,
   type TokenRef,
+  tokenPathToCamel,
   walkTokenLeaves,
 } from "@/helpers/formatter-token.helpers";
 
@@ -31,20 +32,7 @@ class SwiftUIFormatter {
   
 
   private camelFromPath(path: string): string {
-    const parts = path.split(".");
-    const trimmed = parts.slice(1);
-    let segments: string[];
-
-    if (trimmed[0] === "color" && trimmed.length >= 3) {
-      segments = trimmed.slice(1);
-    } else {
-      segments = trimmed;
-    }
-
-    return segments
-      .map((s, i) => (i === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)))
-      .join("")
-      .replace(/[^a-zA-Z0-9]/g, "");
+    return tokenPathToCamel(path);
   }
 
   private hexToSwiftHex(hex: unknown): string | null {

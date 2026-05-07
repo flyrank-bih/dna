@@ -1,11 +1,10 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
     "lib": ["ES2024"],
-    "downlevelIteration": true,
+    "target": "ES2015",
     "module": "preserve",
     "noEmit": true,
     "skipLibCheck": true,
@@ -14,7 +13,7 @@
     "moduleResolution": "bundler",
     "useDefineForClassFields": true,
     "allowImportingTsExtensions": true,
-    "rootDir": "src"
+    "rootDir": "src",
   },
   "include": ["src"]
 }
