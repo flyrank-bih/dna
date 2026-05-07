@@ -1,0 +1,31 @@
+{
+  "name": "@flyrank/visual-dna",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rslib",
+    "dev": "rslib --watch",
+    "lint": "rslint",
+    "test": "rstest"
+  },
+  "devDependencies": {
+    "@rslib/core": "^0.21.4",
+    "@rslint/core": "^0.5.2",
+    "@rstest/core": "^0.9.10",
+    "@types/node": "^24.12.2",
+    "typescript": "^6.0.3"
+  },
+  "private": true
+}
