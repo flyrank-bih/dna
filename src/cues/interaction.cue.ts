@@ -1,4 +1,5 @@
-import { chromium, type ElementHandle, type Page } from "playwright";
+import type { ElementHandle, Page } from "playwright-core";
+import { launchChromium } from "@/helpers/playwright-runtime.helper";
 
 interface InteractionCaptureOptions {
   width?: number;
@@ -84,7 +85,7 @@ export class InteractionCueCapture {
     options: InteractionCaptureOptions = {},
   ): Promise<InteractionCaptureResult> {
     const { width = 1280, height = 800, wait = 0 } = options;
-    const browser = await chromium.launch({ headless: true });
+    const browser = await launchChromium({ headless: true });
     const context = await browser.newContext({ viewport: { width, height } });
     const page = await context.newPage();
 

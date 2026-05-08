@@ -1,6 +1,7 @@
-import { chromium, type Page } from "playwright";
+import type { Page } from "playwright-core";
 import { extractPageIntent } from "@/cues/page-intent.cue";
 import { type ActionHandler } from "./action.protocol";
+import { launchChromium } from "@/helpers/playwright-runtime.helper";
 
 const PAGE_TYPE_RANK = [
   "pricing",
@@ -277,7 +278,7 @@ export async function crawlCanonicalPages({
   crawlerOptions = {},
 }: CrawlCanonicalPagesOptions): Promise<CanonicalPageRunResult> {
   void _homepageRawData;
-  const browser = await chromium.launch({ headless: true });
+  const browser = await launchChromium({ headless: true });
   const context = await browser.newContext({
     viewport: {
       width: Number(crawlerOptions.width) || 1280,

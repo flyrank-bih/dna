@@ -1,4 +1,4 @@
-import { chromium } from "playwright";
+import { launchChromium } from "@/helpers/playwright-runtime.helper";
 
 const VIEWPORTS = [
   { name: "mobile", width: 375, height: 812 },
@@ -63,7 +63,7 @@ export class ResponsivenessCueCapture {
     options: { wait?: number } = {},
   ): Promise<ResponsiveCaptureResult> {
     const { wait = 0 } = options;
-    const browser = await chromium.launch({ headless: true });
+    const browser = await launchChromium({ headless: true });
 
     const snapshots: Array<ResponsiveSnapshot | ResponsiveErrorSnapshot> = [];
 

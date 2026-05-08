@@ -2,7 +2,7 @@
   "name": "@flyrank/dna",
   "description": "The All-In One Brand DNA Identity Extraction Toolbox SDK",
   "author": "admirsaheta",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "type": "module",
   "exports": {
     ".": {
@@ -31,7 +31,8 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^132.0.0",
     "openai": "^6.37.0",
-    "playwright": "^1.59.1"
+    "playwright-core": "^1.59.1"
   }
 }

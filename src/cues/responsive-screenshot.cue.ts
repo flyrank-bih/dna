@@ -1,6 +1,6 @@
-import { chromium } from "playwright";
 import { mkdirSync } from "fs";
 import { join } from "path";
+import { launchChromium } from "@/helpers/playwright-runtime.helper";
 
 const BREAKPOINTS = [
   { slug: "mobile", width: 375, height: 812 },
@@ -35,9 +35,9 @@ async function captureAt(
   scheme: "light" | "dark",
   channel?: string,
 ): Promise<ResponsiveShot> {
-  const browser = await chromium.launch({
+  const browser = await launchChromium({
     headless: true,
-    ...(channel && { channel }),
+    channel,
   });
   try {
     const ctx = await browser.newContext({

@@ -1,6 +1,6 @@
-import { chromium } from "playwright";
 import { mkdirSync } from "fs";
 import { join } from "path";
+import { launchChromium } from "@/helpers/playwright-runtime.helper";
 
 const CANDIDATE_SELECTOR =
   'button, a[role="button"], .btn, [class*="button"], input[type="text"], input[type="email"], input[type="search"], textarea, [class*="card"]';
@@ -217,9 +217,9 @@ export class ComponentScreenshotCueCapture {
     const screenshotDir = join(outDir, "screenshots");
     mkdirSync(screenshotDir, { recursive: true });
 
-    const browser = await chromium.launch({
+    const browser = await launchChromium({
       headless: true,
-      ...(channel && { channel }),
+      channel,
     });
     try {
       const context = await browser.newContext({

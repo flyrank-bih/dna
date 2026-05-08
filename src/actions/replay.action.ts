@@ -1,4 +1,3 @@
-import { chromium } from "playwright";
 import {
   mkdirSync,
   existsSync,
@@ -11,6 +10,7 @@ import {
 import { resolve, join } from "path";
 import { spawnSync } from "child_process";
 import { type ActionHandler } from "./action.protocol";
+import { launchChromium } from "@/helpers/playwright-runtime.helper";
 
 async function ensureFfmpeg(): Promise<boolean> {
   try {
@@ -74,7 +74,7 @@ async function recordReplayRuntime(
   const videoDir = join(outDir, `.playwright-video-${Date.now()}`);
   mkdirSync(videoDir, { recursive: true });
 
-  const browser = await chromium.launch({ headless: true });
+  const browser = await launchChromium({ headless: true });
   const context = await browser.newContext({
     viewport: { width, height },
     recordVideo: { dir: videoDir, size: { width, height } },

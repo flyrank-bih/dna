@@ -1,4 +1,4 @@
-import { chromium } from "playwright";
+import { launchChromium } from "@/helpers/playwright-runtime.helper";
 
 const THIRD_PARTY_HOSTS = [
   "google-analytics",
@@ -95,9 +95,9 @@ export class PerformanceCueCapture {
       timeout = 30000,
     }: CoreWebVitalOptions = {},
   ) {
-    const browser = await chromium.launch({
+    const browser = await launchChromium({
       headless: true,
-      ...(channel && { channel }),
+      channel,
     });
     try {
       const ctx = await browser.newContext({

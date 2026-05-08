@@ -1,7 +1,11 @@
-import { chromium, type Page } from "playwright";
+import type { Page } from "playwright-core";
 import { mkdirSync } from "fs";
 import { join } from "path";
 import { type ActionHandler } from "./action.protocol";
+import {
+  launchChromium,
+  playwrightChromium,
+} from "@/helpers/playwright-runtime.helper";
 
 const MAX_ELEMENTS = 5000;
 
@@ -187,13 +191,11 @@ export async function crawlPage(
   // across Browserless and any other CDP-compatible service. connect() would
   // require Playwright's protocol on a path like /playwright/chromium.
   const browser = usingRemote
-    ? await chromium.connectOverCDP(wsEndpoint, { timeout: 30000 })
-    : await chromium.launch({
+    ? await playwrightChromium.connectOverCDP(wsEndpoint, { timeout: 30000 })
+    : await launchChromium({
         headless: true,
-        ...(executablePath && { executablePath }),
-        // channel: 'chrome' forces Playwright to use the system Chrome install
-        // instead of the 150MB bundled Chromium — see --system-chrome.
-        ...(channel && { channel }),
+        executablePath,
+        channel,
         args: launchArgs,
       });
   try {
