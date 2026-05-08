@@ -1,9 +1,24 @@
+import {
+  extractAssetsSlice,
+  extractDesignPaletteSlice,
+  extractFontFamiliesSlice,
+} from "@/sdk/modular-extraction";
+
 export type ExtractMode =
   | "standard"
   | "overview"
   | "stack"
   | "dna"
   | "voice"
+  | "layout"
+  | "palette"
+  | "fonts"
+  | "assets"
+  | "identity"
+  | "messaging"
+  | "composition"
+  | "interaction"
+  | "recreate"
   | "design-language";
 
 interface DesignLike {
@@ -49,6 +64,8 @@ interface DesignLike {
   zIndex?: unknown;
   icons?: unknown;
   fonts?: unknown;
+  assets?: unknown;
+  aiInsights?: unknown;
   images?: unknown;
   motion?: unknown;
   componentAnatomy?: unknown[];
@@ -60,6 +77,12 @@ interface DesignLike {
   componentLibrary?: unknown;
   backgroundPatterns?: unknown;
   stackIntel?: unknown;
+  brandIdentity?: unknown;
+  composition?: unknown;
+  artDirection?: unknown;
+  messagingArchitecture?: unknown;
+  interactionSignature?: unknown;
+  themeRelationships?: unknown;
   warnings?: string[];
 }
 
@@ -114,11 +137,66 @@ export interface DnaModeResult extends ModeBase<"dna"> {
   materialLanguage: unknown;
   imageryStyle: unknown;
   backgroundPatterns: unknown;
+  composition: unknown;
+  artDirection: unknown;
 }
 
 export interface VoiceModeResult extends ModeBase<"voice"> {
   mode: "voice";
   voice: unknown;
+}
+
+export interface LayoutModeResult extends ModeBase<"layout"> {
+  mode: "layout";
+  layout: unknown;
+}
+
+export interface PaletteModeResult extends ModeBase<"palette"> {
+  mode: "palette";
+  palette: ReturnType<typeof extractDesignPaletteSlice>;
+}
+
+export interface FontsModeResult extends ModeBase<"fonts"> {
+  mode: "fonts";
+  fonts: ReturnType<typeof extractFontFamiliesSlice>;
+}
+
+export interface AssetsModeResult extends ModeBase<"assets"> {
+  mode: "assets";
+  assets: ReturnType<typeof extractAssetsSlice>;
+}
+
+export interface IdentityModeResult extends ModeBase<"identity"> {
+  mode: "identity";
+  identity: unknown;
+}
+
+export interface MessagingModeResult extends ModeBase<"messaging"> {
+  mode: "messaging";
+  messaging: unknown;
+}
+
+export interface CompositionModeResult extends ModeBase<"composition"> {
+  mode: "composition";
+  composition: unknown;
+  artDirection: unknown;
+}
+
+export interface InteractionModeResult extends ModeBase<"interaction"> {
+  mode: "interaction";
+  interaction: unknown;
+}
+
+export interface RecreateModeResult extends ModeBase<"recreate"> {
+  mode: "recreate";
+  recreate: {
+    tokens: unknown;
+    identity: unknown;
+    composition: unknown;
+    messaging: unknown;
+    interaction: unknown;
+    promptsHint: string[];
+  };
 }
 
 export interface DesignLanguageModeResult
@@ -143,6 +221,8 @@ export interface DesignLanguageModeResult
     zIndex: unknown;
     icons: unknown;
     fonts: unknown;
+    assets: unknown;
+    aiInsights: unknown;
     images: unknown;
     motion: unknown;
     componentAnatomy: unknown[];
@@ -152,6 +232,13 @@ export interface DesignLanguageModeResult
     materialLanguage: unknown;
     imageryStyle: unknown;
     componentLibrary: unknown;
+    layout: unknown;
+    brandIdentity: unknown;
+    composition: unknown;
+    artDirection: unknown;
+    messagingArchitecture: unknown;
+    interactionSignature: unknown;
+    themeRelationships: unknown;
     quickStart: string[];
   };
 }
@@ -161,6 +248,15 @@ export type ModeExtractResult =
   | StackModeResult
   | DnaModeResult
   | VoiceModeResult
+  | LayoutModeResult
+  | PaletteModeResult
+  | FontsModeResult
+  | AssetsModeResult
+  | IdentityModeResult
+  | MessagingModeResult
+  | CompositionModeResult
+  | InteractionModeResult
+  | RecreateModeResult
   | DesignLanguageModeResult;
 
 export function isModeExtractResult(value: unknown): value is ModeExtractResult {
@@ -170,6 +266,15 @@ export function isModeExtractResult(value: unknown): value is ModeExtractResult 
     mode === "stack" ||
     mode === "dna" ||
     mode === "voice" ||
+    mode === "layout" ||
+    mode === "palette" ||
+    mode === "fonts" ||
+    mode === "assets" ||
+    mode === "identity" ||
+    mode === "messaging" ||
+    mode === "composition" ||
+    mode === "interaction" ||
+    mode === "recreate" ||
     mode === "design-language"
   );
 }
@@ -240,6 +345,8 @@ export function createDesignLanguageModeResult(
       zIndex: design.zIndex || {},
       icons: design.icons || {},
       fonts: design.fonts || {},
+      assets: design.assets || {},
+      aiInsights: design.aiInsights || {},
       images: design.images || {},
       motion: design.motion || {},
       componentAnatomy: design.componentAnatomy || [],
@@ -249,6 +356,13 @@ export function createDesignLanguageModeResult(
       materialLanguage: design.materialLanguage || {},
       imageryStyle: design.imageryStyle || {},
       componentLibrary: design.componentLibrary || {},
+      layout: design.layout || {},
+      brandIdentity: design.brandIdentity || {},
+      composition: design.composition || {},
+      artDirection: design.artDirection || {},
+      messagingArchitecture: design.messagingArchitecture || {},
+      interactionSignature: design.interactionSignature || {},
+      themeRelationships: design.themeRelationships || {},
       quickStart: [
         `Install fonts: add ${primaryFamily}.`,
         "Import CSS variables from variables.css.",
@@ -323,6 +437,8 @@ export function createDnaModeResult(designInput: unknown): DnaModeResult {
     materialLanguage: design.materialLanguage || {},
     imageryStyle: design.imageryStyle || {},
     backgroundPatterns: design.backgroundPatterns || {},
+    composition: design.composition || {},
+    artDirection: design.artDirection || {},
   };
 }
 
@@ -331,6 +447,106 @@ export function createVoiceModeResult(designInput: unknown): VoiceModeResult {
   return {
     ...modeBase(design, "voice"),
     voice: design.voice || {},
+  };
+}
+
+export function createLayoutModeResult(designInput: unknown): LayoutModeResult {
+  const design = (designInput || {}) as DesignLike;
+  return {
+    ...modeBase(design, "layout"),
+    layout: design.layout || {},
+  };
+}
+
+export function createPaletteModeResult(designInput: unknown): PaletteModeResult {
+  const design = (designInput || {}) as DesignLike;
+  return {
+    ...modeBase(design, "palette"),
+    palette: extractDesignPaletteSlice(
+      design as Parameters<typeof extractDesignPaletteSlice>[0],
+    ),
+  };
+}
+
+export function createFontsModeResult(designInput: unknown): FontsModeResult {
+  const design = (designInput || {}) as DesignLike;
+  return {
+    ...modeBase(design, "fonts"),
+    fonts: extractFontFamiliesSlice(
+      design as Parameters<typeof extractFontFamiliesSlice>[0],
+    ),
+  };
+}
+
+export function createAssetsModeResult(designInput: unknown): AssetsModeResult {
+  const design = (designInput || {}) as DesignLike;
+  return {
+    ...modeBase(design, "assets"),
+    assets: extractAssetsSlice(
+      design as Parameters<typeof extractAssetsSlice>[0],
+    ),
+  };
+}
+
+export function createIdentityModeResult(designInput: unknown): IdentityModeResult {
+  const design = (designInput || {}) as DesignLike;
+  return {
+    ...modeBase(design, "identity"),
+    identity: design.brandIdentity || {},
+  };
+}
+
+export function createMessagingModeResult(designInput: unknown): MessagingModeResult {
+  const design = (designInput || {}) as DesignLike;
+  return {
+    ...modeBase(design, "messaging"),
+    messaging: design.messagingArchitecture || {},
+  };
+}
+
+export function createCompositionModeResult(designInput: unknown): CompositionModeResult {
+  const design = (designInput || {}) as DesignLike;
+  return {
+    ...modeBase(design, "composition"),
+    composition: design.composition || {},
+    artDirection: design.artDirection || {},
+  };
+}
+
+export function createInteractionModeResult(designInput: unknown): InteractionModeResult {
+  const design = (designInput || {}) as DesignLike;
+  return {
+    ...modeBase(design, "interaction"),
+    interaction: design.interactionSignature || {},
+  };
+}
+
+export function createRecreateModeResult(designInput: unknown): RecreateModeResult {
+  const design = (designInput || {}) as DesignLike;
+  return {
+    ...modeBase(design, "recreate"),
+    recreate: {
+      tokens: {
+        colors: design.colors || {},
+        typography: design.typography || {},
+        spacing: design.spacing || {},
+        borders: design.borders || {},
+        shadows: design.shadows || {},
+        themeRelationships: design.themeRelationships || {},
+      },
+      identity: design.brandIdentity || {},
+      composition: {
+        composition: design.composition || {},
+        artDirection: design.artDirection || {},
+      },
+      messaging: design.messagingArchitecture || {},
+      interaction: design.interactionSignature || {},
+      promptsHint: [
+        "Preserve the identity assets and lockup treatment.",
+        "Recreate composition rhythm before micro-detail polish.",
+        "Keep CTA hierarchy and proof modules aligned to source intent.",
+      ],
+    },
   };
 }
 
@@ -343,5 +559,14 @@ export function toModeExtractResult(
   if (mode === "stack") return createStackModeResult(designInput);
   if (mode === "dna") return createDnaModeResult(designInput);
   if (mode === "voice") return createVoiceModeResult(designInput);
+  if (mode === "layout") return createLayoutModeResult(designInput);
+  if (mode === "palette") return createPaletteModeResult(designInput);
+  if (mode === "fonts") return createFontsModeResult(designInput);
+  if (mode === "assets") return createAssetsModeResult(designInput);
+  if (mode === "identity") return createIdentityModeResult(designInput);
+  if (mode === "messaging") return createMessagingModeResult(designInput);
+  if (mode === "composition") return createCompositionModeResult(designInput);
+  if (mode === "interaction") return createInteractionModeResult(designInput);
+  if (mode === "recreate") return createRecreateModeResult(designInput);
   return createDesignLanguageModeResult(designInput);
 }

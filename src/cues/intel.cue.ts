@@ -42,6 +42,73 @@ export const EXPERIMENTATION = [
   { id: "vercel-flags", re: /vercel\/flags|flags\.sdk/i },
 ] as const;
 
+export const HOSTING = [
+  { id: "vercel", re: /vercel\.app|x-vercel|_vercel/i },
+  { id: "netlify", re: /netlify\.app|netlify/i },
+  { id: "cloudflare", re: /cloudflare|cf-cache-status|cdnjs/i },
+  { id: "aws", re: /cloudfront|amazonaws\.com/i },
+  { id: "fastly", re: /fastly/i },
+] as const;
+
+export const FRONTEND = [
+  { id: "next.js", re: /_next\/|next-route-announcer|__next/i },
+  { id: "react", re: /react|data-reactroot|__REACT_DEVTOOLS/i },
+  { id: "vue", re: /__vue__|vue-router|vuex|vite\/vue/i },
+  { id: "nuxt", re: /__nuxt|nuxt/i },
+  { id: "svelte", re: /svelte|sveltekit/i },
+  { id: "angular", re: /ng-version|angular/i },
+  { id: "astro", re: /astro-island|astro/i },
+  { id: "remix", re: /_remixContext|remix/i },
+  { id: "gatsby", re: /___gatsby|gatsby/i },
+  { id: "liquid", re: /\.liquid|shopify-section|shopify-features/i },
+  { id: "alpine.js", re: /x-data|alpinejs/i },
+  { id: "preact", re: /preact/i },
+  { id: "solidjs", re: /solid-start|solidjs/i },
+] as const;
+
+export const DESIGN_SYSTEM = [
+  { id: "tailwindcss", re: /tailwind/i },
+  { id: "bootstrap", re: /bootstrap/i },
+  { id: "ant-design", re: /ant[- ]?design|antd/i },
+  { id: "shadcn-ui", re: /shadcn/i },
+  { id: "radix-ui", re: /radix/i },
+  { id: "chakra-ui", re: /chakra/i },
+  { id: "mui", re: /mui-|material-ui/i },
+  { id: "mantine", re: /mantine/i },
+  { id: "material-design", re: /material design|mdc-/i },
+] as const;
+
+export const COMMERCE = [
+  { id: "shopify", re: /shopify|cdn\.shopify/i },
+  { id: "woocommerce", re: /woocommerce|wc-ajax|wp-woocommerce/i },
+  { id: "magento", re: /magento|mage\/cookies/i },
+  { id: "bigcommerce", re: /bigcommerce|bc-sf-filter/i },
+  { id: "saleor", re: /saleor/i },
+  { id: "commercetools", re: /commercetools/i },
+  { id: "stripe", re: /js\.stripe\.com|stripe/i },
+  { id: "paypal", re: /paypal\.com|paypal/i },
+  { id: "klarna", re: /klarna/i },
+] as const;
+
+export const OBSERVABILITY = [
+  { id: "datadog", re: /datadoghq|datadog/i },
+  { id: "sentry", re: /sentry/i },
+  { id: "new-relic", re: /newrelic/i },
+  { id: "logrocket", re: /logrocket/i },
+  { id: "grafana", re: /grafana|faro-web-sdk/i },
+  { id: "honeycomb", re: /honeycomb/i },
+] as const;
+
+export const SUPPORT = [
+  { id: "intercom", re: /intercom/i },
+  { id: "zendesk", re: /zendesk/i },
+  { id: "drift", re: /drift\.com|drift/i },
+  { id: "hubspot-chat", re: /hubspot.*chat|hs-banner/i },
+  { id: "freshdesk", re: /freshdesk|freshworks/i },
+  { id: "crisp", re: /crisp\.chat|crisp/i },
+  { id: "helpscout", re: /helpscout|beacon-v2/i },
+] as const;
+
 export function fingerprint(haystack: string, list: readonly { id: string; re: RegExp }[]): string[] {
   const hits: string[] = [];
   for (const entry of list) {
@@ -54,21 +121,35 @@ export function extractStackIntel(stack: {
   scripts?: string[];
   metas?: { name?: string; content?: string }[];
   classNameSample?: string[];
+  windowGlobals?: string[];
 } = {}) {
   const scripts = (stack.scripts || []).join(" \n");
   const metas = (stack.metas || [])
     .map((m) => `${m.name || ""} ${m.content || ""}`)
     .join(" ");
   const classes = (stack.classNameSample || []).join(" ");
-  const haystack = `${scripts}\n${metas}\n${classes}`;
+  const globals = (stack.windowGlobals || []).join(" ");
+  const haystack = `${scripts}\n${metas}\n${classes}\n${globals}`;
 
   return {
     cms: fingerprint(haystack, CMS),
     analytics: fingerprint(haystack, ANALYTICS),
     experimentation: fingerprint(haystack, EXPERIMENTATION),
+    hosting: fingerprint(haystack, HOSTING),
+    frontend: fingerprint(haystack, FRONTEND),
+    designSystem: fingerprint(haystack, DESIGN_SYSTEM),
+    commerce: fingerprint(haystack, COMMERCE),
+    observability: fingerprint(haystack, OBSERVABILITY),
+    support: fingerprint(haystack, SUPPORT),
     signals: {
       scriptCount: (stack.scripts || []).length,
       metaCount: (stack.metas || []).length,
+    },
+    evidence: {
+      scripts: (stack.scripts || []).slice(0, 12),
+      metas: (stack.metas || []).slice(0, 12),
+      classes: (stack.classNameSample || []).slice(0, 20),
+      windowGlobals: (stack.windowGlobals || []).slice(0, 20),
     },
   };
 }

@@ -40,12 +40,46 @@ interface ExtractedPageData {
   fontData?: {
     fontFaces: Array<{ family: string; style: string; weight: string; src: string }>;
     googleFontsLinks: string[];
+    stylesheetLinks?: string[];
     documentFonts: Array<{ family: string; style: string; weight: string; status: string }>;
   };
   favicons?: unknown[];
   manifest?: string | null;
   jsonLd?: string[];
-  images?: unknown[];
+  themeColor?: string | null;
+  logos?: Array<{
+    src: string;
+    href: string;
+    alt: string;
+    text: string;
+    kind: string;
+    format: string;
+    sourceType: "image" | "svg" | "inline";
+    inHeader: boolean;
+    width: number;
+    height: number;
+  }>;
+  images?: Array<{
+    tag: string;
+    src: string;
+    alt: string;
+    width: number;
+    height: number;
+    naturalWidth: number;
+    naturalHeight: number;
+    format: string;
+    loading: string;
+    transferSize: number | null;
+    encodedBodySize: number | null;
+    decodedBodySize: number | null;
+    objectFit: string;
+    objectPosition: string;
+    borderRadius: string;
+    filter: string;
+    opacity: string;
+    aspectRatio: string;
+    classList: string;
+  }>;
 }
 
 interface CrawlPageResult {
@@ -66,6 +100,7 @@ export interface CrawlPageOptions {
   dark?: boolean;
   depth?: number;
   screenshots?: boolean;
+  screenshot?: boolean;
   outDir?: string;
   executablePath?: string;
   browserArgs?: string[];
@@ -75,6 +110,11 @@ export interface CrawlPageOptions {
   insecure?: boolean;
   userAgent?: string;
   deepInteract?: boolean;
+  interact?: boolean;
+  interactions?: boolean;
+  responsive?: boolean;
+  pages?: number;
+  platforms?: string[];
   selector?: string;
   channel?: string;
   wsEndpoint?: string;
@@ -108,6 +148,7 @@ export async function crawlPage(
     dark = false,
     depth = 0,
     screenshots = false,
+    screenshot = false,
     outDir = "",
     executablePath,
     browserArgs,
@@ -117,10 +158,16 @@ export async function crawlPage(
     insecure = false,
     userAgent,
     deepInteract = false,
+    interact = false,
+    interactions = false,
+    pages = 0,
     selector,
     channel,
     wsEndpoint, // Remote browser (e.g. Browserless). When set, skips local launch.
   } = options;
+  const shouldCaptureScreenshots = screenshots || screenshot;
+  const shouldDeepInteract = deepInteract || interact || interactions;
+  const normalizedDepth = pages > 0 ? pages : depth;
 
   const launchArgs = [
     ...(browserArgs || []),
@@ -215,7 +262,7 @@ export async function crawlPage(
 
     // Auto-interact pass (Tier 2): scroll, open menus, hover, open accordions & a first modal.
     let interactState = null;
-    if (deepInteract) {
+    if (shouldDeepInteract) {
       interactState = await runInteractionPass(page).catch(() => null);
     }
 
@@ -225,14 +272,14 @@ export async function crawlPage(
 
     // Component screenshots
     let componentScreenshots = {};
-    if (screenshots && outDir) {
+    if (shouldCaptureScreenshots && outDir) {
       componentScreenshots = await captureComponentScreenshots(page, outDir);
     }
 
     // Multi-page crawl: discover internal links and extract from them
     const additionalPages = [];
     const routes = [];
-    if (depth > 0) {
+    if (normalizedDepth > 0) {
       // Seed routes with the primary page
       try {
         const u0 = new URL(url);
@@ -244,7 +291,7 @@ export async function crawlPage(
       } catch {
         /* ignore */
       }
-      const internalLinks = await discoverInternalLinks(page, url, depth);
+      const internalLinks = await discoverInternalLinks(page, url, normalizedDepth);
       for (const link of internalLinks) {
         try {
           await gotoWithRetry(page, link, {
@@ -1247,6 +1294,7 @@ async function extractPageData(
       results.fontData = {
         fontFaces: [],
         googleFontsLinks: [],
+        stylesheetLinks: [],
         documentFonts: [],
       };
       try {
@@ -1272,9 +1320,13 @@ async function extractPageData(
         /* ignore */
       }
       for (const link of document.querySelectorAll(
-        'link[href*="fonts.googleapis.com"]',
+        'link[href*="fonts.googleapis.com"], link[href*="fonts.gstatic.com"], link[rel="preload"][as="font"], link[rel="stylesheet"][href*="font"]',
       )) {
-        results.fontData.googleFontsLinks.push((link as HTMLLinkElement).href);
+        const href = (link as HTMLLinkElement).href;
+        results.fontData.stylesheetLinks?.push(href);
+        if (href.includes("fonts.googleapis.com")) {
+          results.fontData.googleFontsLinks.push(href);
+        }
       }
       for (const font of document.fonts) {
         results.fontData.documentFonts.push({
@@ -1300,12 +1352,53 @@ async function extractPageData(
         }));
       const manifestLink = document.querySelector('link[rel="manifest"]');
       results.manifest = manifestLink ? (manifestLink as HTMLLinkElement).href : null;
+      const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+      results.themeColor = themeColorMeta
+        ? themeColorMeta.getAttribute("content")
+        : null;
       results.jsonLd = Array.from(
         document.querySelectorAll('script[type="application/ld+json"]'),
       )
         .slice(0, 12)
         .map((s) => s.textContent || "")
         .filter(Boolean);
+
+      results.logos = Array.from(
+        document.querySelectorAll(
+          'header a img, nav a img, [class*="logo"] img, [class*="brand"] img, header svg, nav svg, [class*="logo"] svg',
+        ),
+      )
+        .slice(0, 12)
+        .map((node) => {
+          const element = node as HTMLElement;
+          const anchor = element.closest("a");
+          const rect = element.getBoundingClientRect();
+          const img = node as HTMLImageElement;
+          const rawSrc = "src" in img ? img.currentSrc || img.src || "" : "";
+          const formatMatch = rawSrc.match(/\.([a-z0-9]+)(?:[?#]|$)/i);
+          const sourceType: "image" | "svg" | "inline" =
+            node.tagName.toLowerCase() === "img"
+              ? "image"
+              : node.tagName.toLowerCase() === "svg" && rawSrc
+                ? "svg"
+                : "inline";
+          return {
+            src: rawSrc,
+            href: anchor instanceof HTMLAnchorElement ? anchor.href : "",
+            alt: "alt" in img ? img.alt || "" : "",
+            text: (anchor?.textContent || element.getAttribute("aria-label") || "").trim(),
+            kind: node.tagName.toLowerCase(),
+            format: formatMatch?.[1]?.toLowerCase() || (node.tagName.toLowerCase() === "svg" ? "svg" : "unknown"),
+            sourceType,
+            inHeader: Boolean(element.closest("header, nav")),
+            width: rect.width,
+            height: rect.height,
+          };
+        })
+        .filter(
+          (entry) =>
+            Boolean(entry.src || entry.text) && entry.width >= 12 && entry.height >= 12,
+        );
 
       // Image data
       results.images = [];
@@ -1315,11 +1408,31 @@ async function extractPageData(
         const rect = img.getBoundingClientRect();
         if (rect.width < 5 || rect.height < 5) continue;
         const cs = getComputedStyle(img);
+        const imageElement = img as HTMLImageElement;
+        const src = imageElement.currentSrc || imageElement.src || "";
+        const timingEntry = src
+          ? performance
+              .getEntriesByName(src)
+              .find((entry) => entry.entryType === "resource")
+          : null;
+        const resourceTiming =
+          timingEntry && "transferSize" in timingEntry
+            ? (timingEntry as PerformanceResourceTiming)
+            : null;
+        const formatMatch = src.match(/\.([a-z0-9]+)(?:[?#]|$)/i);
         results.images.push({
           tag: img.tagName.toLowerCase(),
-          src: (img as HTMLImageElement).src || "",
+          src,
+          alt: imageElement.alt || img.getAttribute("aria-label") || "",
           width: rect.width,
           height: rect.height,
+          naturalWidth: imageElement.naturalWidth || 0,
+          naturalHeight: imageElement.naturalHeight || 0,
+          format: formatMatch?.[1]?.toLowerCase() || "unknown",
+          loading: imageElement.loading || "",
+          transferSize: resourceTiming?.transferSize ?? null,
+          encodedBodySize: resourceTiming?.encodedBodySize ?? null,
+          decodedBodySize: resourceTiming?.decodedBodySize ?? null,
           objectFit: cs.objectFit,
           objectPosition: cs.objectPosition,
           borderRadius: cs.borderRadius,

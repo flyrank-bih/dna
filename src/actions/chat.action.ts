@@ -2,7 +2,6 @@ import { createInterface } from "readline";
 import { stdin as input, stdout as output } from "process";
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "fs";
 import { join, resolve } from "path";
-import chalk from "chalk";
 import { extractDesignLanguage } from "@/index.js";
 import { nameFromUrl } from "@/helpers/general.helpers";
 import { formatTokens } from "@/helpers/token-formatter.helper";
@@ -251,7 +250,7 @@ function parseCommand(line: string): Record<string, unknown> | null {
 
 function printHelp() {
   console.log("");
-  console.log(chalk.bold("  Commands:"));
+  console.log("  Commands:");
   const rows = [
     ["sharpen / soften", "halve / double every radius"],
     ["dark mode", "swap background ↔ foreground"],
@@ -265,7 +264,7 @@ function printHelp() {
     ["quit", "exit"],
   ];
   for (const [cmd, desc] of rows) {
-    console.log("  " + chalk.cyan(cmd.padEnd(28)) + chalk.gray(desc));
+    console.log("  " + cmd.padEnd(28) + desc);
   }
   console.log("");
 }
@@ -275,10 +274,10 @@ function printState(design: ChatDesign): void {
   const t = design.typography || {};
   const r = design.borders?.radii || [];
   console.log("");
-  console.log(chalk.bold("  Current state"));
+  console.log("  Current state");
   console.log(
     "  " +
-      chalk.gray("palette:".padEnd(14)) +
+      "palette:".padEnd(14) +
       [
         c.primary?.hex,
         c.secondary?.hex,
@@ -290,16 +289,16 @@ function printState(design: ChatDesign): void {
         .join(" · "),
   );
   console.log(
-    "  " + chalk.gray("font:".padEnd(14)) + (t.families?.[0]?.name || "—"),
+    "  " + "font:".padEnd(14) + (t.families?.[0]?.name || "—"),
   );
   console.log(
     "  " +
-      chalk.gray("radii:".padEnd(14)) +
+      "radii:".padEnd(14) +
       (r.map((x) => `${x.label || "?"}=${x.value}`).join(" · ") || "—"),
   );
   console.log(
     "  " +
-      chalk.gray("material:".padEnd(14)) +
+      "material:".padEnd(14) +
       (design.materialLanguage?.label || "flat"),
   );
   console.log("");
@@ -424,24 +423,24 @@ async function runChatSession(target: string, opts: Record<string, unknown> = {}
 
   let design: ChatDesign;
   if (target && /\.json$/.test(target) && existsSync(target)) {
-    console.log(chalk.gray(`  Loading tokens from ${target}…`));
+    console.log(`  Loading tokens from ${target}...`);
     const tokens = JSON.parse(readFileSync(target, "utf-8"));
     design = synthesizeDesignFromTokens(tokens, target);
   } else {
     let url = String(target);
     if (!url.startsWith("http")) url = `https://${url}`;
-    console.log(chalk.gray(`  Extracting ${url}…  (this takes a few seconds)`));
+    console.log(`  Extracting ${url}...  (this takes a few seconds)`);
     design = (await extractDesignLanguage(url)) as unknown as ChatDesign;
   }
 
   const original = structuredClone(design);
 
   console.log("");
-  console.log(chalk.bold("  Flyrank Visual DNA chat"));
-  console.log(chalk.gray('  type "help" for commands · Ctrl+D to quit'));
+  console.log("  Flyrank Visual DNA chat");
+  console.log('  type "help" for commands · Ctrl+D to quit');
   printState(design);
 
-  const rl = createInterface({ input, output, prompt: chalk.gray("> ") });
+  const rl = createInterface({ input, output, prompt: "> " });
   rl.prompt();
 
   for await (const line of rl) {
@@ -468,7 +467,7 @@ async function runChatSession(target: string, opts: Record<string, unknown> = {}
     if (parsed.kind === "reset") {
       const r = opReset(design, original);
       design = r.design;
-      r.changes.forEach((c) => console.log("  " + chalk.gray("•") + " " + c));
+      r.changes.forEach((c) => console.log("  • " + c));
       printState(design);
       rl.prompt();
       continue;
@@ -476,15 +475,13 @@ async function runChatSession(target: string, opts: Record<string, unknown> = {}
     if (parsed.kind === "save") {
       const files = saveDesign(design, outDir);
       console.log("");
-      for (const f of files) console.log("  " + chalk.green("✓") + " " + f);
+      for (const f of files) console.log("  ✓ " + f);
       console.log("");
       rl.prompt();
       continue;
     }
     if (parsed.kind === "unknown") {
-      console.log(
-        chalk.yellow(`  Didn't catch that. Try "help" for commands.`),
-      );
+      console.log(`  Didn't catch that. Try "help" for commands.`);
       rl.prompt();
       continue;
     }
@@ -493,14 +490,14 @@ async function runChatSession(target: string, opts: Record<string, unknown> = {}
       const r = applyOp(parsed, design);
       design = r.design;
       console.log("");
-      r.changes.forEach((c) => console.log("  " + chalk.green("•") + " " + c));
+      r.changes.forEach((c) => console.log("  • " + c));
       console.log("");
       rl.prompt();
     }
   }
 
   console.log("");
-  console.log(chalk.gray("  bye"));
+  console.log("  bye");
 }
 
 export class ChatAction

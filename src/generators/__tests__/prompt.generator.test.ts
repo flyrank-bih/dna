@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@rstest/core";
 import {
   buildPromptPack,
+  buildBenchmarkPromptPack,
   formatCodexPrompt,
   formatCopilotPrompt,
 } from "../prompt.generator";
@@ -31,5 +32,32 @@ describe("prompt.generator", () => {
   it("exposes direct codex/copilot formatters", () => {
     expect(formatCodexPrompt(design)).toContain("Constraints:");
     expect(formatCopilotPrompt(design)).toContain("Library hint:");
+  });
+
+  it("adds benchmark context to prompts", () => {
+    const pack = buildBenchmarkPromptPack(design, {
+      baseline: {
+        dominantPatterns: {
+          compositionStyle: "product-led",
+          messagingPosture: "credibility-led",
+        },
+        crowdedLanes: ["premium:premium", "composition:product-led"],
+      },
+      whitespace: {
+        opportunities: [
+          {
+            lane: "expression:expressive",
+            rationale: "Most brands stay visually restrained.",
+          },
+        ],
+      },
+      topUniqueSignals: [
+        { hostname: "linear.app", signals: ["paletteTemperature:cool"] },
+      ],
+    });
+
+    expect(pack["codex.md"]).toContain("Benchmark:");
+    expect(pack["codex.md"]).toContain("Differentiate by:");
+    expect(pack["cursor.md"]).toContain("Benchmark context:");
   });
 });

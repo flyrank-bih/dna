@@ -35,12 +35,21 @@ interface FontOutputItem {
   weights: string[];
   styles: string[];
   urls: string[];
+  assetUrls: string[];
+  provider: "google-fonts" | "cdn" | "self-hosted";
+  license: string | null;
   fontFaceCSS: string;
 }
 
 interface FontExtractionResult {
   fonts: FontOutputItem[];
   googleFontsUrl: string;
+  links: {
+    googleFonts: string[];
+    cdn: string[];
+    selfHosted: string[];
+    all: string[];
+  };
   systemFonts: string[];
 }
 
@@ -76,6 +85,22 @@ export class FontCueExtractor
       });
     }
     return fontMap.get(family)!;
+  }
+
+  private extractUrlsFromSrc(src: string): string[] {
+    const urls: string[] = [];
+    const matches = src.matchAll(/url\((['"]?)([^)'"]+)\1\)/gi);
+    for (const match of matches) {
+      const url = (match[2] || "").trim();
+      if (url) urls.push(url);
+    }
+    return urls;
+  }
+
+  private inferLicense(source: Exclude<FontSource, "system">): string | null {
+    if (source === "google-fonts") return "open-source (provider-dependent)";
+    if (source === "cdn") return "unknown (cdn-hosted)";
+    return "unknown (self-hosted)";
   }
 
   extract({
@@ -127,6 +152,8 @@ export class FontCueExtractor
 
     const fonts: FontOutputItem[] = [];
     const systemFonts: string[] = [];
+    const cdnLinks = new Set<string>();
+    const selfHostedLinks = new Set<string>();
 
     for (const entry of fontMap.values()) {
       const weights = [...entry.weights].sort();
@@ -149,12 +176,26 @@ export class FontCueExtractor
         continue;
       }
 
+      for (const src of entry.urls) {
+        for (const url of this.extractUrlsFromSrc(src)) {
+          if (entry.source === "cdn" || entry.source === "google-fonts") {
+            cdnLinks.add(url);
+          } else if (entry.source === "self-hosted") {
+            selfHostedLinks.add(url);
+          }
+        }
+      }
+
+      const assetUrls = [...new Set(entry.urls.flatMap((src) => this.extractUrlsFromSrc(src)))];
       fonts.push({
         family: entry.family,
         source: entry.source,
         weights,
         styles,
         urls: entry.urls,
+        assetUrls,
+        provider: entry.source,
+        license: this.inferLicense(entry.source),
         fontFaceCSS,
       });
     }
@@ -170,7 +211,22 @@ export class FontCueExtractor
             .join("&")}&display=swap`
         : "");
 
-    return { fonts, googleFontsUrl, systemFonts };
+    const googleFonts = [...new Set(googleFontsLinks.filter(Boolean))];
+    const cdn = [...cdnLinks];
+    const selfHosted = [...selfHostedLinks];
+    const all = [...new Set([...googleFonts, ...cdn, ...selfHosted])];
+
+    return {
+      fonts,
+      googleFontsUrl,
+      links: {
+        googleFonts,
+        cdn,
+        selfHosted,
+        all,
+      },
+      systemFonts,
+    };
   }
 }
 

@@ -1,30 +1,111 @@
 import { extractDesignLanguage, type ExtractDesignLanguageOptions } from "..";
+import { extractBrandArchetype, type BrandArchetypeResult } from "../cues/brand-archetype.cue";
+import { extractCategoryBaseline, type CategoryBaselineResult } from "../cues/category-baseline.cue";
+import {
+  extractCompetitiveFingerprint,
+  type CompetitiveFingerprintResult,
+} from "../cues/competitive-fingerprint.cue";
+import {
+  extractDistinctiveness,
+  type DistinctivenessResult,
+} from "../cues/distinctiveness.cue";
+import { extractPositioning, type PositioningResult } from "../cues/positioning.cue";
+import {
+  extractWhitespaceOpportunities,
+  type WhiteSpaceResult,
+} from "../cues/whitespace-opportunities.cue";
 import { type ActionHandler } from "./action.protocol";
 
-interface BrandComparisonEntry {
+interface BrandDesignSnapshot {
+  colors: {
+    primary?: { hex?: string };
+    secondary?: { hex?: string };
+    all?: Array<{ hex?: string }>;
+  };
+  typography: { families?: Array<{ name?: string } | string> };
+  spacing: { base?: number };
+  accessibility?: { score?: number };
+  shadows: { values?: Array<{ raw?: string }> };
+  borders: { radii?: Array<{ value?: number | string }> };
+  variables?: Record<string, unknown>;
+  components?: Record<string, unknown>;
+  motion?: {
+    durations?: Array<number | { value?: number }>;
+    feel?: string;
+  };
+  composition?: {
+    heroPattern?: string;
+    density?: string;
+    pacing?: string;
+    emphasisPatterns?: string[];
+  };
+  messagingArchitecture?: {
+    headlineFormula?: string;
+    proofModules?: string[];
+  };
+  interactionSignature?: {
+    hoverTreatment?: string;
+    navigationReveal?: string;
+    consistency?: string;
+  };
+  materialLanguage?: {
+    label?: string;
+  };
+  componentLibrary?: {
+    library?: string;
+  };
+  brandIdentity?: {
+    themeColor?: string | null;
+  };
+}
+
+export interface BrandBenchmarkEntry {
   url: string;
   hostname: string;
-  design?: {
-    colors: {
-      primary?: { hex?: string };
-      secondary?: { hex?: string };
-      all?: Array<{ hex?: string }>;
-    };
-    typography: { families?: Array<{ name: string }> };
-    spacing: { base?: number };
-    accessibility?: { score?: number };
-    shadows: { values?: unknown[] };
-    borders: { radii?: unknown[] };
-    variables?: Record<string, unknown>;
-    components?: Record<string, unknown>;
+  design?: BrandDesignSnapshot;
+  summary?: {
+    primaryColor: string | null;
+    secondaryColor: string | null;
+    fonts: string[];
+    spacingBase: number | null;
+    accessibilityScore: number | null;
+    componentCount: number;
+    variableCount: number;
   };
+  fingerprint?: CompetitiveFingerprintResult;
+  distinctiveness?: DistinctivenessResult;
+  positioning?: PositioningResult;
+  archetype?: BrandArchetypeResult;
+  evidence?: string[];
   error?: string;
 }
 
-type CompleteBrandEntry = BrandComparisonEntry & {
-  design: NonNullable<BrandComparisonEntry["design"]>;
+type CompleteBrandEntry = BrandBenchmarkEntry & {
+  design: NonNullable<BrandBenchmarkEntry["design"]>;
+  summary: NonNullable<BrandBenchmarkEntry["summary"]>;
+  fingerprint: CompetitiveFingerprintResult;
+  distinctiveness: DistinctivenessResult;
+  positioning: PositioningResult;
+  archetype: BrandArchetypeResult;
   error?: undefined;
 };
+
+export interface BrandSimilarityEdge {
+  left: string;
+  right: string;
+  score: number;
+  sharedAxes: string[];
+}
+
+export interface BrandBenchmarkResult {
+  brands: BrandBenchmarkEntry[];
+  similarityMatrix: BrandSimilarityEdge[];
+  baseline: CategoryBaselineResult;
+  whitespace: WhiteSpaceResult;
+  topSharedPatterns: string[];
+  topUniqueSignals: Array<{ hostname: string; signals: string[] }>;
+  errors: Array<{ url: string; hostname: string; error: string }>;
+}
 
 function countVariableEntries(variables: Record<string, unknown> = {}): number {
   return Object.values(variables).reduce<number>((sum: number, entry: unknown) => {
@@ -33,232 +114,400 @@ function countVariableEntries(variables: Record<string, unknown> = {}): number {
   }, 0);
 }
 
+function getHostname(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+function getFontNames(
+  families: Array<{ name?: string } | string> = [],
+): string[] {
+  return families
+    .map((family) => (typeof family === "string" ? family : family.name || ""))
+    .filter(Boolean);
+}
+
+function summarizeDesign(design: BrandDesignSnapshot): BrandBenchmarkEntry["summary"] {
+  return {
+    primaryColor: design.colors.primary?.hex || null,
+    secondaryColor: design.colors.secondary?.hex || null,
+    fonts: getFontNames(design.typography.families),
+    spacingBase: typeof design.spacing.base === "number" ? design.spacing.base : null,
+    accessibilityScore:
+      typeof design.accessibility?.score === "number"
+        ? design.accessibility.score
+        : null,
+    componentCount: Object.keys(design.components || {}).length,
+    variableCount: countVariableEntries(design.variables || {}),
+  };
+}
+
+function buildFingerprint(
+  design: BrandDesignSnapshot,
+): CompetitiveFingerprintResult {
+  return extractCompetitiveFingerprint({
+    colors: design.colors,
+    typography: design.typography,
+    spacing: design.spacing,
+    borders: design.borders,
+    shadows: design.shadows,
+    motion: design.motion,
+    composition: design.composition,
+    messagingArchitecture: design.messagingArchitecture,
+    interactionSignature: design.interactionSignature,
+    materialLanguage: design.materialLanguage,
+    componentLibrary: design.componentLibrary,
+  });
+}
+
+function fingerprintEntries(
+  brands: BrandBenchmarkEntry[],
+): CompleteBrandEntry[] {
+  return brands.filter((brand): brand is CompleteBrandEntry => {
+    return Boolean(
+      !brand.error &&
+        brand.design &&
+        brand.summary &&
+        brand.fingerprint &&
+        brand.distinctiveness &&
+        brand.positioning &&
+        brand.archetype,
+    );
+  });
+}
+
+function buildSimilarityMatrix(brands: CompleteBrandEntry[]): BrandSimilarityEdge[] {
+  const axes: Array<keyof CompetitiveFingerprintResult> = [
+    "paletteTemperature",
+    "paletteEnergy",
+    "typePosture",
+    "spacingDensity",
+    "radiusStyle",
+    "motionEnergy",
+    "compositionStyle",
+    "messagingPosture",
+    "proofIntensity",
+    "interactionPersonality",
+    "formality",
+  ];
+
+  const edges: BrandSimilarityEdge[] = [];
+  for (let leftIndex = 0; leftIndex < brands.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < brands.length; rightIndex += 1) {
+      const left = brands[leftIndex];
+      const right = brands[rightIndex];
+      const sharedAxes = axes.filter(
+        (axis) => left.fingerprint[axis] === right.fingerprint[axis],
+      );
+      const score = sharedAxes.length / axes.length;
+      edges.push({
+        left: left.hostname,
+        right: right.hostname,
+        score,
+        sharedAxes,
+      });
+    }
+  }
+  return edges.sort((left, right) => right.score - left.score);
+}
+
+function buildTopSharedPatterns(
+  baseline: CategoryBaselineResult,
+): string[] {
+  return [
+    `palette:${baseline.dominantPatterns.paletteTemperature}/${baseline.dominantPatterns.paletteEnergy}`,
+    `type:${baseline.dominantPatterns.typePosture}`,
+    `composition:${baseline.dominantPatterns.compositionStyle}`,
+    `messaging:${baseline.dominantPatterns.messagingPosture}`,
+    `expression:${baseline.dominantPatterns.expression}`,
+    `archetype:${baseline.dominantPatterns.archetype}`,
+  ];
+}
+
+function buildTopUniqueSignals(
+  brands: CompleteBrandEntry[],
+): Array<{ hostname: string; signals: string[] }> {
+  return brands
+    .map((brand) => ({
+      hostname: brand.hostname,
+      signals: brand.distinctiveness.uniqueSignals.slice(0, 4),
+    }))
+    .sort(
+      (left, right) =>
+        (right.signals.length || 0) - (left.signals.length || 0),
+    );
+}
+
 export class CompareBrandsAction
   implements
-    ActionHandler<[urls: string[], options?: ExtractDesignLanguageOptions], Promise<BrandComparisonEntry[]>>
+    ActionHandler<
+      [urls: string[], options?: ExtractDesignLanguageOptions],
+      Promise<BrandBenchmarkResult>
+    >
 {
   async run(
     urls: string[],
     options: ExtractDesignLanguageOptions = {},
-  ): Promise<BrandComparisonEntry[]> {
-    const brands: BrandComparisonEntry[] = [];
+  ): Promise<BrandBenchmarkResult> {
+    const brands: BrandBenchmarkEntry[] = [];
 
     for (const url of urls) {
       const normalized = url.startsWith("http") ? url : `https://${url}`;
+      const hostname = getHostname(normalized);
       try {
-        const design = await extractDesignLanguage(normalized, options);
-        const hostname = new URL(normalized).hostname.replace(/^www\./, "");
+        const design = (await extractDesignLanguage(
+          normalized,
+          options,
+        )) as unknown as BrandDesignSnapshot;
+        const fingerprint = buildFingerprint(design);
+        const positioning = extractPositioning({ fingerprint });
+        const archetype = extractBrandArchetype({
+          fingerprint,
+          positioning,
+        });
+        const summary = summarizeDesign(design);
         brands.push({
           url: normalized,
           hostname,
-          design: design as unknown as BrandComparisonEntry["design"],
+          design,
+          summary,
+          fingerprint,
+          positioning,
+          archetype,
+          evidence: [
+            ...(fingerprint.evidence || []),
+            ...(archetype.evidence || []),
+            ...(positioning.evidence || []),
+          ],
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        brands.push({ url: normalized, hostname: url, error: message });
+        brands.push({ url: normalized, hostname, error: message });
       }
     }
-    return brands;
+
+    const provisional = brands
+      .filter(
+        (brand): brand is BrandBenchmarkEntry & {
+          fingerprint: CompetitiveFingerprintResult;
+          positioning: PositioningResult;
+          archetype: BrandArchetypeResult;
+          design: BrandDesignSnapshot;
+          summary: NonNullable<BrandBenchmarkEntry["summary"]>;
+        } =>
+          !brand.error &&
+          Boolean(
+            brand.design &&
+              brand.summary &&
+              brand.fingerprint &&
+              brand.positioning &&
+              brand.archetype,
+          ),
+      )
+      .map((brand) => ({
+        ...brand,
+        distinctiveness: extractDistinctiveness({
+          brand: {
+            hostname: brand.hostname,
+            fingerprint: brand.fingerprint,
+          },
+          cohort: brands
+            .filter(
+              (entry): entry is BrandBenchmarkEntry & {
+                fingerprint: CompetitiveFingerprintResult;
+              } => !entry.error && Boolean(entry.fingerprint),
+            )
+            .map((entry) => ({
+              hostname: entry.hostname,
+              fingerprint: entry.fingerprint,
+            })),
+        }),
+      }));
+
+    const valid = fingerprintEntries(
+      brands.map((brand) => {
+        const match = provisional.find(
+          (candidate) => candidate.hostname === brand.hostname,
+        );
+        return match || brand;
+      }),
+    );
+
+    const baseline = extractCategoryBaseline({
+      brands: valid.map((brand) => ({
+        hostname: brand.hostname,
+        fingerprint: brand.fingerprint,
+        positioning: brand.positioning,
+        archetype: brand.archetype,
+      })),
+    });
+
+    const whitespace = extractWhitespaceOpportunities({
+      brands: valid.map((brand) => ({
+        hostname: brand.hostname,
+        fingerprint: brand.fingerprint,
+        positioning: brand.positioning,
+        archetype: brand.archetype,
+      })),
+      baseline,
+    });
+
+    const similarityMatrix = buildSimilarityMatrix(valid);
+    const errors = brands
+      .filter(
+        (brand): brand is BrandBenchmarkEntry & { error: string } =>
+          typeof brand.error === "string",
+      )
+      .map((brand) => ({
+        url: brand.url,
+        hostname: brand.hostname,
+        error: brand.error,
+      }));
+
+    return {
+      brands: [
+        ...valid,
+        ...brands.filter((brand) => brand.error),
+      ],
+      similarityMatrix,
+      baseline,
+      whitespace,
+      topSharedPatterns: buildTopSharedPatterns(baseline),
+      topUniqueSignals: buildTopUniqueSignals(valid),
+      errors,
+    };
   }
 }
 
 export async function compareBrands(
   urls: string[],
   options: ExtractDesignLanguageOptions = {},
-): Promise<BrandComparisonEntry[]> {
+): Promise<BrandBenchmarkResult> {
   return new CompareBrandsAction().run(urls, options);
 }
 
 export class BrandMatrixMarkdownFormatter
-  implements ActionHandler<[brands: BrandComparisonEntry[]], string>
+  implements ActionHandler<[result: BrandBenchmarkResult], string>
 {
-  run(brands: BrandComparisonEntry[]): string {
-  const lines = [];
-  const valid: CompleteBrandEntry[] = brands.filter(
-    (b): b is CompleteBrandEntry => !b.error && !!b.design,
-  );
+  run(result: BrandBenchmarkResult): string {
+    const valid = fingerprintEntries(result.brands);
+    const lines: string[] = [];
 
-  lines.push("# Multi-Brand Design Comparison");
-  lines.push("");
-  lines.push(`Comparing ${valid.length} brands.`);
-  lines.push("");
-
-  // Overview table
-  const headers = ["Property", ...valid.map((b) => b.hostname)];
-  lines.push(`| ${headers.join(" | ")} |`);
-  lines.push(`| ${headers.map(() => "---").join(" | ")} |`);
-
-  // Primary color
-  lines.push(
-    `| Primary Color | ${valid.map((b) => `\`${b.design.colors.primary?.hex || "none"}\``).join(" | ")} |`,
-  );
-  // Secondary color
-  lines.push(
-    `| Secondary Color | ${valid.map((b) => `\`${b.design.colors.secondary?.hex || "none"}\``).join(" | ")} |`,
-  );
-  // Fonts
-  lines.push(
-    `| Fonts | ${valid.map((b) => (b.design.typography.families || []).map((f) => f.name).join(", ") || "none").join(" | ")} |`,
-  );
-  // Color count
-  lines.push(
-    `| Color Count | ${valid.map((b) => (b.design.colors.all || []).length).join(" | ")} |`,
-  );
-  // Spacing base
-  lines.push(
-    `| Spacing Base | ${valid.map((b) => (b.design.spacing.base ? `${b.design.spacing.base}px` : "none")).join(" | ")} |`,
-  );
-  // A11y score
-  lines.push(
-    `| A11y Score | ${valid.map((b) => (b.design.accessibility ? `${b.design.accessibility.score}%` : "n/a")).join(" | ")} |`,
-  );
-  // Shadows
-  lines.push(
-    `| Shadows | ${valid.map((b) => (b.design.shadows.values || []).length).join(" | ")} |`,
-  );
-  // Radii
-  lines.push(
-    `| Border Radii | ${valid.map((b) => (b.design.borders.radii || []).length).join(" | ")} |`,
-  );
-  // CSS vars
-  lines.push(
-    `| CSS Variables | ${valid.map((b) => countVariableEntries((b.design?.variables || {}) as Record<string, unknown>)).join(" | ")} |`,
-  );
-  // Components
-  lines.push(
-    `| Components | ${valid.map((b) => Object.keys(b.design.components || {}).join(", ") || "none").join(" | ")} |`,
-  );
-
-  lines.push("");
-
-  // Color overlap matrix
-  lines.push("## Color Overlap");
-  lines.push("");
-  if (valid.length >= 2) {
-    for (let i = 0; i < valid.length; i++) {
-      for (let j = i + 1; j < valid.length; j++) {
-        const colorsA = new Set((valid[i].design.colors.all || []).map((c) => c.hex));
-        const colorsB = new Set((valid[j].design.colors.all || []).map((c) => c.hex));
-        const shared = [...colorsA].filter((c) => colorsB.has(c));
-        lines.push(
-          `**${valid[i].hostname} vs ${valid[j].hostname}:** ${shared.length} shared colors${
-            shared.length > 0
-              ? ` (${shared
-                  .slice(0, 5)
-                  .map((c) => `\`${c}\``)
-                  .join(", ")})`
-              : ""
-          }`,
-        );
+    lines.push("# Competitive Brand Benchmark");
+    lines.push("");
+    lines.push(`Brands analyzed: ${valid.length}`);
+    lines.push("");
+    lines.push("## Baseline");
+    lines.push("");
+    lines.push(
+      `- Dominant palette: ${result.baseline.dominantPatterns.paletteTemperature}/${result.baseline.dominantPatterns.paletteEnergy}`,
+    );
+    lines.push(
+      `- Dominant type posture: ${result.baseline.dominantPatterns.typePosture}`,
+    );
+    lines.push(
+      `- Dominant composition: ${result.baseline.dominantPatterns.compositionStyle}`,
+    );
+    lines.push(
+      `- Dominant messaging: ${result.baseline.dominantPatterns.messagingPosture}`,
+    );
+    lines.push(
+      `- Crowded lanes: ${result.baseline.crowdedLanes.join(", ") || "none"}`,
+    );
+    lines.push("");
+    lines.push("## Brand Matrix");
+    lines.push("");
+    lines.push(
+      `| Brand | Archetype | Distinctiveness | Sameness Risk | Palette | Composition | Messaging |`,
+    );
+    lines.push("|---|---|---:|---:|---|---|---|");
+    for (const brand of valid) {
+      lines.push(
+        `| ${brand.hostname} | ${brand.archetype.primary} | ${brand.distinctiveness.overall.toFixed(2)} | ${brand.distinctiveness.samenessRisk.toFixed(2)} | ${brand.fingerprint.paletteTemperature}/${brand.fingerprint.paletteEnergy} | ${brand.fingerprint.compositionStyle} | ${brand.fingerprint.messagingPosture} |`,
+      );
+    }
+    lines.push("");
+    lines.push("## Strongest Similarities");
+    lines.push("");
+    for (const edge of result.similarityMatrix.slice(0, 5)) {
+      lines.push(
+        `- ${edge.left} vs ${edge.right}: ${edge.score.toFixed(2)} (${edge.sharedAxes.join(", ")})`,
+      );
+    }
+    lines.push("");
+    lines.push("## White Space Opportunities");
+    lines.push("");
+    for (const opportunity of result.whitespace.opportunities) {
+      lines.push(`- ${opportunity.lane}: ${opportunity.rationale}`);
+    }
+    lines.push("");
+    lines.push("## Unique Signals");
+    lines.push("");
+    for (const entry of result.topUniqueSignals.slice(0, 8)) {
+      lines.push(`- ${entry.hostname}: ${entry.signals.join(", ") || "none"}`);
+    }
+    if (result.errors.length > 0) {
+      lines.push("");
+      lines.push("## Errors");
+      lines.push("");
+      for (const entry of result.errors) {
+        lines.push(`- ${entry.url}: ${entry.error}`);
       }
     }
-    lines.push("");
-  }
-
-  // Font comparison
-  lines.push("## Typography Comparison");
-  lines.push("");
-  const allFonts = new Set<string>();
-  for (const b of valid) {
-    for (const f of b.design.typography.families || []) allFonts.add(f.name);
-  }
-  lines.push(`| Font | ${valid.map((b) => b.hostname).join(" | ")} |`);
-  lines.push(`| --- | ${valid.map(() => "---").join(" | ")} |`);
-  for (const font of allFonts) {
-    lines.push(
-      `| ${font} | ${valid.map((b) => ((b.design.typography.families || []).some((f) => f.name === font) ? "Yes" : "-")).join(" | ")} |`,
-    );
-  }
-  lines.push("");
-
-  // Errors
-  const errored = brands.filter((b) => b.error);
-  if (errored.length > 0) {
-    lines.push("## Errors");
-    lines.push("");
-    for (const b of errored) {
-      lines.push(`- **${b.url}**: ${b.error}`);
-    }
-    lines.push("");
-  }
-
     return lines.join("\n");
   }
 }
 
-export function formatBrandMatrix(brands: BrandComparisonEntry[]): string {
-  return new BrandMatrixMarkdownFormatter().run(brands);
+export function formatBrandMatrix(result: BrandBenchmarkResult): string {
+  return new BrandMatrixMarkdownFormatter().run(result);
 }
 
-export function formatBrandMatrixHtml(brands: BrandComparisonEntry[]): string {
-  const valid: CompleteBrandEntry[] = brands.filter(
-    (b): b is CompleteBrandEntry => !b.error && !!b.design,
-  );
-
-  const swatchCell = (hex?: string) =>
-    hex
-      ? `<td><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:${hex};border:1px solid #333;vertical-align:middle;margin-right:6px"></span><code>${hex}</code></td>`
-      : `<td>-</td>`;
-
+export function formatBrandMatrixHtml(result: BrandBenchmarkResult): string {
+  const valid = fingerprintEntries(result.brands);
   return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>Multi-Brand Comparison</title>
+<html><head><meta charset="UTF-8"><title>Competitive Brand Benchmark</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:-apple-system,sans-serif; background:#0a0a0a; color:#e5e5e5; padding:40px; }
   h1 { font-size:28px; color:#fff; margin-bottom:24px; }
   h2 { font-size:18px; color:#fff; margin:32px 0 12px; }
+  p, li { color:#c7c7c7; }
   table { width:100%; border-collapse:collapse; margin:12px 0; }
   th { text-align:left; padding:10px 12px; background:#141414; color:#888; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; border-bottom:1px solid #222; }
   td { padding:10px 12px; border-bottom:1px solid #1a1a1a; font-size:13px; }
   tr:hover td { background:#111; }
   code { background:#1e1e2e; padding:2px 6px; border-radius:4px; font-size:12px; color:#a78bfa; }
-  .score-good { color:#22c55e; } .score-warn { color:#eab308; } .score-bad { color:#ef4444; }
 </style></head><body>
-<h1>Multi-Brand Design Comparison</h1>
-<p style="color:#666;margin-bottom:24px">${valid.length} brands analyzed</p>
-
+<h1>Competitive Brand Benchmark</h1>
+<p>${valid.length} brands analyzed</p>
+<h2>Baseline</h2>
+<ul>
+  <li>Palette: <code>${result.baseline.dominantPatterns.paletteTemperature}/${result.baseline.dominantPatterns.paletteEnergy}</code></li>
+  <li>Type posture: <code>${result.baseline.dominantPatterns.typePosture}</code></li>
+  <li>Composition: <code>${result.baseline.dominantPatterns.compositionStyle}</code></li>
+  <li>Messaging: <code>${result.baseline.dominantPatterns.messagingPosture}</code></li>
+</ul>
+<h2>Brand Matrix</h2>
 <table>
-<tr><th>Property</th>${valid.map((b) => `<th>${b.hostname}</th>`).join("")}</tr>
-<tr><td>Primary Color</td>${valid.map((b) => swatchCell(b.design.colors.primary?.hex)).join("")}</tr>
-<tr><td>Secondary Color</td>${valid.map((b) => swatchCell(b.design.colors.secondary?.hex)).join("")}</tr>
-<tr><td>Fonts</td>${valid.map((b) => `<td>${(b.design.typography.families || []).map((f) => `<code>${f.name}</code>`).join(" ")}</td>`).join("")}</tr>
-<tr><td>Colors</td>${valid.map((b) => `<td>${(b.design.colors.all || []).length}</td>`).join("")}</tr>
-<tr><td>Spacing Base</td>${valid.map((b) => `<td>${b.design.spacing.base ? b.design.spacing.base + "px" : "-"}</td>`).join("")}</tr>
-<tr><td>A11y Score</td>${valid
-    .map((b) => {
-      const s = b.design.accessibility?.score;
-      const cls =
-        typeof s !== "number"
-          ? "score-warn"
-          : s >= 80
-            ? "score-good"
-            : s >= 50
-              ? "score-warn"
-              : "score-bad";
-      return `<td class="${cls}">${s ?? "n/a"}%</td>`;
-    })
-    .join("")}</tr>
-<tr><td>Shadows</td>${valid.map((b) => `<td>${(b.design.shadows.values || []).length}</td>`).join("")}</tr>
-<tr><td>Border Radii</td>${valid.map((b) => `<td>${(b.design.borders.radii || []).length}</td>`).join("")}</tr>
-<tr><td>CSS Variables</td>${valid.map((b) => `<td>${countVariableEntries((b.design?.variables || {}) as Record<string, unknown>)}</td>`).join("")}</tr>
+  <tr><th>Brand</th><th>Archetype</th><th>Distinctiveness</th><th>Sameness</th><th>Palette</th><th>Composition</th><th>Messaging</th></tr>
+  ${valid
+    .map(
+      (brand) =>
+        `<tr><td>${brand.hostname}</td><td>${brand.archetype.primary}</td><td>${brand.distinctiveness.overall.toFixed(2)}</td><td>${brand.distinctiveness.samenessRisk.toFixed(2)}</td><td>${brand.fingerprint.paletteTemperature}/${brand.fingerprint.paletteEnergy}</td><td>${brand.fingerprint.compositionStyle}</td><td>${brand.fingerprint.messagingPosture}</td></tr>`,
+    )
+    .join("")}
 </table>
-
-<h2>Full Color Palettes</h2>
-${valid
-  .map(
-    (b) => `
-<h3 style="color:#888;font-size:14px;margin:16px 0 8px">${b.hostname}</h3>
-<div style="display:flex;gap:4px;flex-wrap:wrap">
-${(b.design.colors.all || [])
-  .slice(0, 15)
-  .map(
-    (c) =>
-      `<div style="width:32px;height:32px;border-radius:6px;background:${c.hex};border:1px solid #333" title="${c.hex}"></div>`,
-  )
-  .join("")}
-</div>`,
-  )
-  .join("")}
-
+<h2>White Space</h2>
+<ul>
+  ${result.whitespace.opportunities
+    .map(
+      (opportunity) =>
+        `<li><strong>${opportunity.lane}</strong>: ${opportunity.rationale}</li>`,
+    )
+    .join("")}
+</ul>
 </body></html>`;
 }
