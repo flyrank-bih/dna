@@ -6,7 +6,7 @@ describe("markdown formatter", () => {
     meta: {
       title: "Example",
       url: "https://example.com",
-      timestamp: Date.now(),
+      timestamp: new Date().toISOString(),
       elementCount: 100,
       pagesAnalyzed: 1,
     },
@@ -44,6 +44,28 @@ describe("markdown formatter", () => {
 
   it("renders markdown from class API", () => {
     const markdown = new MarkdownFormatter(design).format();
+    expect(markdown).toContain("## Quick Start");
+  });
+
+  it("handles partial extraction payloads without throwing", () => {
+    const markdown = formatMarkdown({
+      meta: {
+        title: "Partial Example",
+        url: "https://example.com",
+      },
+      colors: {
+        primary: { hex: "#000000" },
+      },
+      typography: {
+        families: [{ name: "Inter" }],
+      },
+      fonts: {},
+      componentScreenshots: {},
+      voice: {},
+      sectionRoles: {},
+    });
+
+    expect(markdown).toContain("# Design Language: Partial Example");
     expect(markdown).toContain("## Quick Start");
   });
 });

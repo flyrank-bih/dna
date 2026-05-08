@@ -1400,18 +1400,30 @@ function persistExtractionArtifacts(
   const prefix = nameFromUrl(design.meta.url);
 
   const designLanguagePath = join(outputDir, `${prefix}-design-language.md`);
-  writeTextFile(
-    designLanguagePath,
-    formatMarkdown(design as Parameters<typeof formatMarkdown>[0]),
-  );
+  try {
+    writeTextFile(
+      designLanguagePath,
+      formatMarkdown(design as Parameters<typeof formatMarkdown>[0]),
+    );
+  } catch (error) {
+    design.warnings.push(
+      `artifact emission failed for ${prefix}-design-language.md: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+  }
 
   const compactDesignPath = join(outputDir, `${prefix}-DESIGN.md`);
-  writeTextFile(
-    compactDesignPath,
-    DefaultDesignMdObserver.format(
-      design as Parameters<typeof DefaultDesignMdObserver.format>[0],
-    ),
-  );
+  try {
+    writeTextFile(
+      compactDesignPath,
+      DefaultDesignMdObserver.format(
+        design as Parameters<typeof DefaultDesignMdObserver.format>[0],
+      ),
+    );
+  } catch (error) {
+    design.warnings.push(
+      `artifact emission failed for ${prefix}-DESIGN.md: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+  }
 
   writeTextFile(
     join(outputDir, `${prefix}-design-language.json`),
