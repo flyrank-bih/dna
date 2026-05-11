@@ -494,6 +494,14 @@ bun run build
 bun run test
 ```
 
+## Open Source
+
+- License: MIT (see `LICENSE`)
+- Contribution guide: `CONTRIBUTING.md`
+- Code of Conduct: `CODE_OF_CONDUCT.md`
+- Security policy: `SECURITY.md`
+- Support guide: `SUPPORT.md`
+
 ## Stack Intel
 
 `stack` mode now surfaces broader deterministic detection categories including:
