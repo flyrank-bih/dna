@@ -1,4 +1,5 @@
 import { type BrandAiProvider } from "./ai.provider";
+import { type BrandAiInsightsResult } from "./brand-insights";
 
 interface SuggestionInput {
   colors?: unknown;
@@ -73,4 +74,59 @@ export async function generateAiSuggestions(
     )}`,
   });
   return response.data;
+}
+
+export function toVisualSuggestionsFromInsights(
+  insights: BrandAiInsightsResult,
+): VisualSuggestionResult {
+  const suggestions: VisualSuggestion[] = [];
+
+  for (const recommendation of insights.paletteApproach || []) {
+    suggestions.push({
+      area: "palette",
+      priority: "high",
+      recommendation,
+      rationale: "Derived from AI palette scaling guidance.",
+    });
+  }
+
+  for (const recommendation of insights.typographyApproach || []) {
+    suggestions.push({
+      area: "typography",
+      priority: "medium",
+      recommendation,
+      rationale: "Derived from AI typography system guidance.",
+    });
+  }
+
+  for (const recommendation of insights.layoutApproach || []) {
+    suggestions.push({
+      area: "layout",
+      priority: "high",
+      recommendation,
+      rationale: "Derived from AI layout direction guidance.",
+    });
+  }
+
+  for (const recommendation of insights.voiceApproach || []) {
+    suggestions.push({
+      area: "messaging",
+      priority: "medium",
+      recommendation,
+      rationale: "Derived from AI voice and messaging guidance.",
+    });
+  }
+
+  for (const recommendation of insights.brandScalingApproach || []) {
+    suggestions.push({
+      area: "brand-scaling",
+      priority: "high",
+      recommendation,
+      rationale: "Derived from AI brand scaling strategy guidance.",
+    });
+  }
+
+  return {
+    suggestions: suggestions.slice(0, 16),
+  };
 }

@@ -212,6 +212,7 @@ Methods:
 - `suggestPaletteEvolution(input, options?)`
 - `suggestTypographySystem(input, options?)`
 - `suggestLayoutDirections(input, options?)`
+- `runCombinedAiMethods(input, options?)`
 - `extractScreenshots(input, options?)`
 - `createSnapshot(input)`
 - `compareSnapshots(current, previous)`
@@ -273,7 +274,15 @@ const scaling = await dl.suggestBrandScaling("https://stripe.com", { ai: true })
 const paletteEvolution = await dl.suggestPaletteEvolution("https://stripe.com", { ai: true });
 const typographySystem = await dl.suggestTypographySystem("https://stripe.com", { ai: true });
 const layoutDirections = await dl.suggestLayoutDirections("https://stripe.com", { ai: true });
+const aiBundle = await dl.runCombinedAiMethods("https://stripe.com", { ai: true });
 ```
+
+`runCombinedAiMethods(...)` performs a single AI insights generation pass and returns merged method-shaped results for:
+- `suggestEnhancements`
+- `extractAiInsights`
+- `suggestPaletteEvolution`
+- `suggestBrandScaling`
+- `suggestTypographySystem`
 
 ## Screenshot Extraction
 

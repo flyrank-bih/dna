@@ -79,6 +79,8 @@ import {
 import {
   buildDeterministicSuggestions,
   generateAiSuggestions,
+  toVisualSuggestionsFromInsights,
+  type VisualSuggestionResult,
 } from "./sdk/ai/visual-suggestions";
 import { analyzeAssets } from "./sdk/assets/image-analysis";
 import {
@@ -1124,6 +1126,14 @@ export interface ScreenshotExtractMethodOptions
   height?: number;
 }
 
+export interface CombinedAiMethodsResult {
+  suggestEnhancements: VisualSuggestionResult;
+  extractAiInsights: BrandAiInsightsResult;
+  suggestPaletteEvolution: PaletteEvolutionResult;
+  suggestBrandScaling: BrandScalingResult;
+  suggestTypographySystem: TypographySystemResult;
+}
+
 export interface FlyDesignClient {
   extract: (
     url: string,
@@ -1219,6 +1229,10 @@ export interface FlyDesignClient {
     input: BatchableExtractInput,
     options?: AiInsightsExtractOptions,
   ) => Promise<SdkResponse<LayoutDirectionsResult | BatchExtractionResult<LayoutDirectionsResult>>>;
+  runCombinedAiMethods: (
+    input: BatchableExtractInput,
+    options?: AiInsightsExtractOptions,
+  ) => Promise<SdkResponse<CombinedAiMethodsResult | BatchExtractionResult<CombinedAiMethodsResult>>>;
   extractScreenshots: (
     input: string | DesignLanguageResult,
     options?: ScreenshotExtractMethodOptions,
@@ -1636,6 +1650,24 @@ export function init(options: SdkInitInput = {}): FlyDesignClient {
       return generateAiBrandInsights(aiProvider, payload);
     }
     return buildDeterministicBrandInsights(payload);
+  }
+
+  async function buildCombinedAiMethodsResult(
+    design: DesignLanguageResult,
+    options: AiInsightsExtractOptions = {},
+  ): Promise<CombinedAiMethodsResult> {
+    const resolvedOptions: AiInsightsExtractOptions = {
+      ...options,
+      ai: typeof options.ai === "boolean" ? options.ai : Boolean(aiProvider),
+    };
+    const insights = await buildAiInsightsResult(design, resolvedOptions);
+    return {
+      suggestEnhancements: toVisualSuggestionsFromInsights(insights),
+      extractAiInsights: insights,
+      suggestPaletteEvolution: toPaletteEvolutionResult(insights),
+      suggestBrandScaling: toBrandScalingResult(insights),
+      suggestTypographySystem: toTypographySystemResult(insights),
+    };
   }
 
   return {
@@ -2092,6 +2124,21 @@ export function init(options: SdkInitInput = {}): FlyDesignClient {
             toLayoutDirectionsResult(await buildAiInsightsResult(design, options)),
           ),
         { code: "provider_error", message: "suggestLayoutDirections failed" },
+      );
+    },
+
+    async runCombinedAiMethods(
+      input: BatchableExtractInput,
+      options: AiInsightsExtractOptions = {},
+    ) {
+      return runMethod(
+        "runCombinedAiMethods",
+        "sdk.ai.combined",
+        async () =>
+          resolveSliceInputAsync(input, options, async (design) =>
+            buildCombinedAiMethodsResult(design, options),
+          ),
+        { code: "provider_error", message: "runCombinedAiMethods failed" },
       );
     },
 
