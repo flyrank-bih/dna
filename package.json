@@ -2,7 +2,7 @@
   "name": "@flyrank/dna",
   "description": "The All-In One Brand DNA Identity Extraction Toolbox SDK",
   "author": "admirsaheta",
-  "version": "1.0.15",
+  "version": "1.0.17",
   "type": "module",
   "exports": {
     ".": {

@@ -9,6 +9,12 @@ interface LaunchChromiumOptions {
   maxLaunchAttempts?: number;
 }
 
+interface LaunchParams {
+  executablePath?: string;
+  channel?: string;
+  args: string[];
+}
+
 let executablePathMemo: Promise<string | undefined> | null = null;
 
 function sleep(ms: number): Promise<void> {
@@ -17,27 +23,26 @@ function sleep(ms: number): Promise<void> {
 
 function isRetryableSpawnError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
-  const message = error.message || "";
+  const msg = error.message || "";
   return (
-    message.includes("spawn ETXTBSY") ||
-    message.includes("spawn EBUSY") ||
-    message.includes("spawn ENOENT") ||
-    message.includes("spawn ENOEXEC")
+    msg.includes("spawn ETXTBSY") ||
+    msg.includes("spawn EBUSY") ||
+    msg.includes("spawn ENOENT") ||
+    msg.includes("spawn ENOEXEC")
   );
 }
 
-function isExecFormatError(error: unknown): boolean {
-  return error instanceof Error && (error.message || "").includes("spawn ENOEXEC");
-}
-
-function isMissingSharedLibraryError(error: unknown): boolean {
+function isBinaryUnusableError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const msg = error.message || "";
   return (
+    // macOS / Windows running a Linux binary
+    msg.includes("spawn ENOEXEC") ||
+    // Missing shared library (e.g. libnspr4.so on non-AL2 Linux)
     msg.includes("cannot open shared object file") ||
     msg.includes("error while loading shared libraries") ||
-    // Playwright wraps the browser crash — check the embedded browser log for exit 127
-    (msg.includes("process did exit: exitCode=127") || msg.includes("exitCode=127, signal=null"))
+    msg.includes("exitCode=127, signal=null") ||
+    msg.includes("process did exit: exitCode=127")
   );
 }
 
@@ -46,7 +51,6 @@ function getFallbackChannel(explicitChannel?: string): string | undefined {
   if (process.env.PLAYWRIGHT_CHROMIUM_CHANNEL) {
     return process.env.PLAYWRIGHT_CHROMIUM_CHANNEL;
   }
-  // Helpful default for local macOS/Windows dev where Sparticuz binary is not usable.
   if (process.platform === "darwin" || process.platform === "win32") {
     return "chrome";
   }
@@ -77,37 +81,53 @@ async function resolveExecutablePath(
 export async function launchChromium(
   options: LaunchChromiumOptions = {},
 ) {
-  const maxLaunchAttempts = Math.max(1, options.maxLaunchAttempts ?? 4);
+  const maxRetriesPerStrategy = Math.max(1, options.maxLaunchAttempts ?? 4);
   const explicitExecutablePath =
     options.executablePath || process.env.CHROME_EXECUTABLE_PATH;
   const executablePath = await resolveExecutablePath(explicitExecutablePath);
   const baseArgs = Array.isArray(chromium.args) ? chromium.args : [];
   const userArgs = options.args || [];
   const fallbackChannel = getFallbackChannel(options.channel);
-  let lastError: unknown = null;
-  let useSparticuzBinary = true;
 
-  for (let attempt = 1; attempt <= maxLaunchAttempts; attempt++) {
-    try {
-      const launchWithSparticuz = useSparticuzBinary && Boolean(executablePath);
-      const args = launchWithSparticuz ? [...baseArgs, ...userArgs] : userArgs;
-      return await playwrightChromium.launch({
-        headless: options.headless ?? true,
-        args,
-        ...(launchWithSparticuz ? { executablePath } : {}),
-        ...(!launchWithSparticuz && fallbackChannel ? { channel: fallbackChannel } : {}),
-      });
-    } catch (error) {
-      lastError = error;
-      if (isExecFormatError(error) || isMissingSharedLibraryError(error)) {
-        // Binary unusable (format mismatch on macOS, or missing shared libs on Linux). Fallback to channel launch.
-        useSparticuzBinary = false;
+  // Strategy cascade: Sparticuz binary → Playwright native → system channel
+  const strategies: LaunchParams[] = [];
+  if (executablePath) {
+    strategies.push({ executablePath, args: [...baseArgs, ...userArgs] });
+  }
+  // Playwright's own downloaded Chromium (works after `playwright install chromium`
+  // or in environments that pre-install Playwright browsers in the image).
+  strategies.push({ args: userArgs });
+  if (fallbackChannel) {
+    strategies.push({ channel: fallbackChannel, args: userArgs });
+  }
+
+  let lastError: unknown;
+
+  for (const strategy of strategies) {
+    for (let attempt = 1; attempt <= maxRetriesPerStrategy; attempt++) {
+      try {
+        return await playwrightChromium.launch({
+          headless: options.headless ?? true,
+          ...strategy,
+        });
+      } catch (error) {
+        lastError = error;
+
+        if (isBinaryUnusableError(error)) {
+          // This binary can't run on this host — skip to the next strategy immediately.
+          break;
+        }
+
+        if (isRetryableSpawnError(error) && attempt < maxRetriesPerStrategy) {
+          // /tmp/chromium can be briefly busy in concurrent serverless launches.
+          await sleep(150 * attempt);
+          continue;
+        }
+
+        // Non-retryable, non-binary error (e.g. Playwright browser not installed for
+        // the native strategy) — fall through to the next strategy.
+        break;
       }
-      if (!isRetryableSpawnError(error) || attempt >= maxLaunchAttempts) {
-        throw error;
-      }
-      // /tmp/chromium can be briefly busy in concurrent serverless launches.
-      await sleep(150 * attempt);
     }
   }
 
