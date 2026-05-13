@@ -30,6 +30,17 @@ function isExecFormatError(error: unknown): boolean {
   return error instanceof Error && (error.message || "").includes("spawn ENOEXEC");
 }
 
+function isMissingSharedLibraryError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message || "";
+  return (
+    msg.includes("cannot open shared object file") ||
+    msg.includes("error while loading shared libraries") ||
+    // Playwright wraps the browser crash — check the embedded browser log for exit 127
+    (msg.includes("process did exit: exitCode=127") || msg.includes("exitCode=127, signal=null"))
+  );
+}
+
 function getFallbackChannel(explicitChannel?: string): string | undefined {
   if (explicitChannel) return explicitChannel;
   if (process.env.PLAYWRIGHT_CHROMIUM_CHANNEL) {
@@ -88,8 +99,8 @@ export async function launchChromium(
       });
     } catch (error) {
       lastError = error;
-      if (isExecFormatError(error)) {
-        // Binary format mismatch (e.g. local dev on macOS). Fallback to channel launch.
+      if (isExecFormatError(error) || isMissingSharedLibraryError(error)) {
+        // Binary unusable (format mismatch on macOS, or missing shared libs on Linux). Fallback to channel launch.
         useSparticuzBinary = false;
       }
       if (!isRetryableSpawnError(error) || attempt >= maxLaunchAttempts) {
