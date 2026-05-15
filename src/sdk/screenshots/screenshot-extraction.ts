@@ -9,7 +9,6 @@ export interface ScreenshotExtractOptions {
   includeDark?: boolean;
   width?: number;
   height?: number;
-  channel?: string;
 }
 
 export interface ScreenshotAsset {
@@ -103,7 +102,6 @@ export async function extractScreenshotsForUrl(
     const componentResult = await captureComponentScreenshotsV10(url, options.outDir, {
       width: options.width,
       height: options.height,
-      channel: options.channel,
     });
     if (options.components) {
       result.components = mapComponentScreenshotAssets(componentResult.components);
@@ -123,7 +121,6 @@ export async function extractScreenshotsForUrl(
   if (options.responsive) {
     const responsiveResult = await captureResponsiveScreenshots(url, options.outDir, {
       includeDark: options.includeDark ?? true,
-      channel: options.channel,
     });
     result.responsive = mapResponsiveScreenshotAssets(
       responsiveResult.shots.filter(

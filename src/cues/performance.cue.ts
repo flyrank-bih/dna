@@ -76,7 +76,6 @@ function fontLoadingStrategy(
 interface CoreWebVitalOptions {
   width?: number;
   height?: number;
-  channel?: string;
   timeout?: number;
 }
 
@@ -91,13 +90,11 @@ export class PerformanceCueCapture {
     {
       width = 1280,
       height = 800,
-      channel,
       timeout = 30000,
     }: CoreWebVitalOptions = {},
   ) {
     const browser = await launchChromium({
       headless: true,
-      channel,
     });
     try {
       const ctx = await browser.newContext({

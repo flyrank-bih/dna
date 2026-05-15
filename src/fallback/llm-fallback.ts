@@ -129,27 +129,33 @@ class OpenAIProvider implements VisualDNAProvider {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error("Missing OPENAI_API_KEY");
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         authorization: `Bearer ${apiKey}`,
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: process.env.VISUAL_DNA_MODEL || "gpt-5-mini",
-        messages: [
+        model: process.env.VISUAL_DNA_MODEL || "gpt-5.4",
+        input: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        response_format: { type: "json_object" },
+        text: { format: { type: "json_object" } },
       }),
     });
 
     if (!response.ok) throw new Error(`OpenAI error: ${response.status}`);
     const json = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+      output?: Array<{
+        type?: string;
+        content?: Array<{ type?: string; text?: string }>;
+      }>;
     };
-    return stringOrEmpty(json.choices?.[0]?.message?.content);
+    const text =
+      json.output?.[0]?.content?.find((c) => c.type === "output_text")?.text ??
+      "";
+    return stringOrEmpty(text);
   }
 }
 

@@ -6,17 +6,16 @@ interface OpenAiAdapterConfig {
   model: string;
 }
 
-interface OpenAiChatCompletionChoice {
-  message?: {
-    content?: string | null;
-  };
+interface OpenAiResponsesOutputItem {
+  type?: string;
+  content?: Array<{ type?: string; text?: string }>;
 }
 
-interface OpenAiChatCompletionResponse {
-  choices?: OpenAiChatCompletionChoice[];
+interface OpenAiResponsesResponse {
+  output?: OpenAiResponsesOutputItem[];
   usage?: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
+    input_tokens?: number;
+    output_tokens?: number;
     total_tokens?: number;
   };
 }
@@ -57,10 +56,8 @@ export class OpenAiSdkAdapter {
 
     const module = (await import("openai")) as {
       default: new (config: { apiKey: string }) => {
-        chat: {
-          completions: {
-            create(params: unknown): Promise<OpenAiChatCompletionResponse>;
-          };
+        responses: {
+          create(params: unknown): Promise<OpenAiResponsesResponse>;
         };
       };
     };
@@ -69,21 +66,23 @@ export class OpenAiSdkAdapter {
       apiKey: this.config.apiKey,
     });
 
-    const response = await client.chat.completions.create({
+    const response = await client.responses.create({
       model: this.config.model,
-      response_format: { type: "json_object" },
-      messages: [
+      input: [
         { role: "system", content: input.systemPrompt },
         { role: "user", content: input.userPrompt },
       ],
+      text: { format: { type: "json_object" } },
     });
 
-    const content = response.choices?.[0]?.message?.content || "";
+    const content =
+      response.output?.[0]?.content?.find((c) => c.type === "output_text")
+        ?.text ?? "";
     return {
       data: parseJsonPayload<TOutput>(content),
       usage: {
-        inputTokens: response.usage?.prompt_tokens,
-        outputTokens: response.usage?.completion_tokens,
+        inputTokens: response.usage?.input_tokens,
+        outputTokens: response.usage?.output_tokens,
         totalTokens: response.usage?.total_tokens,
         model: this.config.model,
       },

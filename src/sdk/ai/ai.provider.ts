@@ -16,7 +16,7 @@ export function resolveAiProvider(
   if (config.provider === "openai" || config.apiKey || process.env.OPENAI_API_KEY) {
     return new OpenAiSdkAdapter({
       apiKey: config.apiKey || process.env.OPENAI_API_KEY || "",
-      model: config.model || process.env.VISUAL_DNA_MODEL || "gpt-5-mini",
+      model: config.model || process.env.VISUAL_DNA_MODEL || "gpt-5.4",
     });
   }
   return null;

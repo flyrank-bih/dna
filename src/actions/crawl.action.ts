@@ -106,7 +106,6 @@ export interface CrawlPageOptions {
   screenshots?: boolean;
   screenshot?: boolean;
   outDir?: string;
-  executablePath?: string;
   browserArgs?: string[];
   cookies?: Array<string | CrawlCookie>;
   headers?: Record<string, string>;
@@ -120,7 +119,6 @@ export interface CrawlPageOptions {
   pages?: number;
   platforms?: string[];
   selector?: string;
-  channel?: string;
   wsEndpoint?: string;
 }
 
@@ -154,7 +152,6 @@ export async function crawlPage(
     screenshots = false,
     screenshot = false,
     outDir = "",
-    executablePath,
     browserArgs,
     cookies,
     headers,
@@ -166,7 +163,6 @@ export async function crawlPage(
     interactions = false,
     pages = 0,
     selector,
-    channel,
     wsEndpoint, // Remote browser (e.g. Browserless). When set, skips local launch.
   } = options;
   const shouldCaptureScreenshots = screenshots || screenshot;
@@ -194,8 +190,6 @@ export async function crawlPage(
     ? await playwrightChromium.connectOverCDP(wsEndpoint, { timeout: 30000 })
     : await launchChromium({
         headless: true,
-        executablePath,
-        channel,
         args: launchArgs,
       });
   try {

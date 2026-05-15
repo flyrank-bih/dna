@@ -211,15 +211,13 @@ export class ComponentScreenshotCueCapture {
     {
       width = 1280,
       height = 800,
-      channel,
-    }: { width?: number; height?: number; channel?: string } = {},
+    }: { width?: number; height?: number } = {},
   ): Promise<ScreenshotCaptureResult> {
     const screenshotDir = join(outDir, "screenshots");
     mkdirSync(screenshotDir, { recursive: true });
 
     const browser = await launchChromium({
       headless: true,
-      channel,
     });
     try {
       const context = await browser.newContext({
@@ -265,7 +263,7 @@ export class ComponentScreenshotCueCapture {
 export async function captureComponentScreenshotsV10(
   url: string,
   outDir: string,
-  options: { width?: number; height?: number; channel?: string } = {},
+  options: { width?: number; height?: number } = {},
 ): Promise<ScreenshotCaptureResult> {
   return new ComponentScreenshotCueCapture().captureComponentScreenshotsV10(
     url,

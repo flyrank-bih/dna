@@ -33,11 +33,9 @@ async function captureAt(
   dir: string,
   bp: Breakpoint,
   scheme: "light" | "dark",
-  channel?: string,
 ): Promise<ResponsiveShot> {
   const browser = await launchChromium({
     headless: true,
-    channel,
   });
   try {
     const ctx = await browser.newContext({
@@ -71,8 +69,7 @@ export class ResponsiveScreenshotCueCapture {
   outDir: string,
   {
     includeDark = true,
-    channel,
-  }: { includeDark?: boolean; channel?: string } = {},
+  }: { includeDark?: boolean } = {},
 ) {
   const dir = join(outDir, "screenshots", "responsive");
   mkdirSync(dir, { recursive: true });
@@ -83,7 +80,7 @@ export class ResponsiveScreenshotCueCapture {
   for (const bp of BREAKPOINTS) {
     for (const scheme of schemes) {
       try {
-        const row = await captureAt(url, dir, bp, scheme, channel);
+        const row = await captureAt(url, dir, bp, scheme);
         out.push(row);
       } catch (error) {
         out.push({
